@@ -1,5 +1,5 @@
-# Proyecto-DQI-EPR
-Este repositorio contiene todo el código relacionado al proyecto conjunto entre Dobby Quantitative Investments (DQI) y El Equipo Pulido-Ruiz (EPR)
+# Pair trading
+Este repositorio contiene todo los códigos de pair trading relacionados al proyecto conjunto entre Dobby Quantitative Investments (DQI) y El Equipo Pulido-Ruiz (EPR)
 
 
 # Ejemplo de uso
