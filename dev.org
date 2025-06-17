@@ -1,0 +1,170 @@
+#+TITLE: Development notes
+#+STARTUP: hidestars
+#+STARTUP: overview
+#+LATEX_CLASS: myarticle
+#+OPTIONS: toc:nil
+#+STARTUP: inlineimages
+
+* Codes
+
+** Plots of time series
+
+Importa librerias
+#+BEGIN_SRC python :session :results output
+import numpy as np
+from read_data import load_ts
+import arbitrage as ar
+import matplotlib.pyplot as plt
+from matplotlib.dates import YearLocator
+import cointegration as co
+#+END_SRC
+
+#+RESULTS:
+
+Defino configuracion en una clase
+
+#+BEGIN_SRC python :session :results output
+class cnf:
+    pathdat='dat/'
+    tipo='asset' # 'asset', 'return', 'log_return', 'log'
+    mtd = 'kf'# 'kf' 'exp' 'on' 'off'
+    Ntraining = 1000 # length of the training period
+    beta_win=61   #21
+    zscore_win=31 #11
+    sigma_co=1.5 # thresold to buy
+    sigma_ve=0.1 # thresold to sell
+    nmax=10#-1 # number of companies to generate the pairs (-1 all, 10 for testing)
+    nsel=100# 100 # number of best pairs to select
+    fname=f'tmp/all_pair_{mtd}_' # fig filename
+    #industry='oil'
+    industry='beverages'
+
+#+END_SRC
+
+#+RESULTS:
+
+
+Cargo los datos, calculo primeras diferencias
+
+#+BEGIN_SRC python :session :results output
+assets=['KO','PEP.O']
+day,date,price,company = load_ts(assets=assets,sector=cnf.industry, pathdat=cnf.pathdat)
+print(price.shape)
+coca=price[:,0]; pepsi=price[:,1]
+dcoca=price[1:,0]-price[:-1,0]
+dpepsi=price[1:,1]-price[:-1,1]
+#+END_SRC
+
+#+RESULTS:
+: aca (array([4]),)
+: shape:  (1, 2768)
+: aca (array([7]),)
+: shape:  (1, 2768)
+: (2768, 2)
+
+Calculo si las series son estacionarias
+
+#+BEGIN_SRC python :session :results output
+print(co.adf_test(coca))
+print(co.adf_test(pepsi))
+print(co.adf_test(dcoca))
+print(co.adf_test(dpepsi))
+spread1,_=co.calculate_spread_off(coca,pepsi)
+spread2,_=co.calculate_spread_off(pepsi,coca)
+print('co2pe',co.adf_test(spread1))
+print('pe2co',co.adf_test(spread2))
+#+END_SRC
+
+#+RESULTS:
+: 0.49679097910323755
+: 0.468843902686874
+: 6.141679048189298e-29
+: 3.277373413406708e-29
+: co2pe 0.01636876450023574
+: pe2co 0.012109224233896631
+
+
+#+BEGIN_SRC python :session :results output
+figfile=cnf.fname+'asset1.png'
+print(figfile)
+fig, ax = plt.subplots(1,1,figsize=(6,4))
+ax.plot(date,price[:,0],label='KO')
+ax.plot(date,price[:,1],label='PEP.O')
+ax.legend(frameon=False)
+ax.tick_params(axis='x',rotation=60, zorder=120)
+ax.xaxis.set_major_locator(YearLocator(1,month=1,day=1))
+ax.set(ylabel='Price',xlabel='Year')
+plt.tight_layout()
+fig.savefig(figfile)
+plt.close()
+#+END_SRC
+
+#+RESULTS:
+: tmp/all_pair_kf_asset1.png
+
+
+[[./tmp/all_pair_kf_asset1.png]]
+
+#+BEGIN_SRC python :session :results output
+figfile=cnf.fname+'asset2.png'
+print(figfile)
+fig, ax = plt.subplots(1,1,figsize=(6,4))
+ax.plot(date[1:],dcoca,label='KO')
+ax.plot(date[1:],dpepsi,label='PEP.O')
+ax.legend(frameon=False)
+ax.tick_params(axis='x',rotation=60, zorder=120)
+ax.xaxis.set_major_locator(YearLocator(1,month=1,day=1))
+ax.set(ylabel='Price',xlabel='Year')
+plt.tight_layout()
+fig.savefig(figfile)
+plt.close()
+#+END_SRC
+
+#+RESULTS:
+: tmp/all_pair_kf_asset2.png
+
+
+[[./tmp/all_pair_kf_asset2.png]]
+
+
+#+BEGIN_SRC python :session :results output
+figfile=cnf.fname+'asset3.png'
+print(figfile)
+fig, ax = plt.subplots(1,1,figsize=(6,4))
+ax.plot(date,spread1,label=r'KO - $\beta$ PEP')
+ax.plot(date,spread2,label=r'PEP - $\beta$ KO')
+ax.legend(frameon=False)
+ax.tick_params(axis='x',rotation=60, zorder=120)
+ax.xaxis.set_major_locator(YearLocator(1,month=1,day=1))
+ax.set(ylabel='Price',xlabel='Year')
+plt.tight_layout()
+fig.savefig(figfile)
+plt.close()
+#+END_SRC
+
+#+RESULTS:
+: tmp/all_pair_kf_asset3.png
+
+
+[[./tmp/all_pair_kf_asset3.png]]
+
+
+#+BEGIN_SRC python :session :results output
+zscore1,_,_ = co.off_zscore(spread1,cnf.zscore_win)
+zscore2,_,_ = co.off_zscore(spread2,cnf.zscore_win)
+figfile=cnf.fname+'asset4.png'
+print(figfile)
+fig, ax = plt.subplots(1,1,figsize=(6,4))
+ax.plot(date,zscore1,label=r'KO - $\beta$ PEP')
+ax.plot(date,zscore2,label=r'PEP - $\beta$ KO')
+ax.legend(frameon=False)
+ax.tick_params(axis='x',rotation=60, zorder=120)
+ax.xaxis.set_major_locator(YearLocator(1,month=1,day=1))
+ax.set(ylabel='Price',xlabel='Year')
+plt.tight_layout()
+fig.savefig(figfile)
+plt.close()
+
+#+END_SRC
+
+#+RESULTS:
