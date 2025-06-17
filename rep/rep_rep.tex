@@ -1,0 +1,377 @@
+% Ojo esta editada a mano.
+\documentclass{myarticle}
+\date{\today}
+\title{Data assimilation in financial time series data}
+\hypersetup{
+ pdfauthor={pulido},
+ pdftitle={Data assimilation in financial time series data},
+ pdfkeywords={},
+ pdfsubject={},
+ pdfcreator={Emacs 27.2 (Org mode 9.5.2)}, 
+ pdflang={English}}
+\begin{document}
+
+\maketitle
+
+\section{Teoria}
+\label{sec:org2dc5380}
+
+\subsection{Pairs trading}
+\label{sec:org6eea304}
+
+En el mercado de valores, pueden existir pares de activos que estan altamente relacionados entre si, por cuestiones de que comparten mercado y objetivos, de tal manera que los retornos de los precios de los activos suelen mostrar coherencia. Generalmente estos pares de activos correlacionados se encuentran en el mismo sector.  Ejemplos paradigmaticos podrian ser Coca Cola y Pepsi o dos empresas de extraccion de petroleo.
+
+Puede haber momentos en los cuales uno de los activos de estos pares puede estar sobrevaluado o subvaluado con respecto al valor del otro activo. Si somos capaces de detectar los momentos en lo que esto sucede, luego esperamos que el activo retorne a su valor esperado por lo cual si entramos en posicion cuando detectamos estos  desajustes entre los valores de los activos podemos hacernos de una ganancia cuando estos activos retornen a los valores esperados.
+
+Dicho de otra manera estamos usando los valores de un activo para estimar el valor del otro activo considerando que ambos activos tienen los mismos drivers. De ser asi, podemos detectar cuando un activo esta sobrevaluado con respecto a su predicci\'on. Llamamos al proceso de ajuste de los activos como reversion a la media--mean reversion.
+
+Entonces en el pairs trading buscamos detectar desbalances entre dos activos  y cuando esto ocurre la estrategia consiste en comprar el activo que esperamos su precio aumente, el activo que esta barato, cuando haya reversion a la media y vender en corto el activo que su precio esta sobrevaluado, esperando una disminucion de valor cuando ocurra la reversion a la media. En general estas estrategias que se basan en retornos que acoplan la performance de posiciones en largo, con posiciones en corto se denominan market-neutral. El pair trading es un caso particular del pair trading.
+
+La metodologia general entonces consiste en buscar pares de activos que esten correlacionados  y esten gobernados por la reversion a la media, luego usar un m\'etodo predictivo que nos permita identificar en esos activos los desbalances de precios, generalmente basados en el z-score, y luego evaluar si la estrategia podr\'ia ser robusta a traves de backtesting, es decir implementaci\'on en series de tiempo ya existentes.
+
+Comenzando con la identificaci\'on de pares es necesario introducir el concepto de cointegraci\'on y ligado a este el de series de tiempo estacionarias. Pasemos a definir estos conceptos.
+
+\subsection{Series de tiempo estacionarias}
+\label{sec:org2946d4f}
+{\scshape Definici\'on.} {\em Una serie de tiempo \(x_t\) es estacionaria si su media y su varianza no cambian con el tiempo y su covarianza temporal  solo depende del lag \(d\).}
+
+  %\[\text{cov}~ x_{t,t+d} = cte \]
+
+Las series de tiempo se dicen tienen un orden de integraci\'on \(I(d)\) si \(d\) es el n\'umero m\'inimo de diferencias entre elementos consecutivos de la serie para que el proceso sea estacionario. Ejemplo una serie es integrada de orden 1, \(I(1)\), significa que \(x_t\) no es estacionaria pero que \(\Delta x_t = x_t-x_{t-1}\) es estacionaria.
+
+\subsection{Cointegraci\'on}
+\label{sec:org5b2e9bc}
+
+{\scshape Definici\'on.} {\em Sean dos activos representados a trav\'es de las series de tiempo correspondientes a los precios de los activos en funci\'on del tiempo, \(x_t\), \(y_t\), las cuales son integradas de orden 1, \(I(1)\), si existe un valor de \(\beta\) tal que \(y_t-\beta x_t\) es estacionaria entonces decimos que las dos series estan cointegradas.}
+
+En esencia si la diferencia entre dos activos es estacionaria eso quiere decir que las diferencias van a revertir a la media. Intuitivamente si la media de la diferencia de los activos no esta cambiando con el tiempo eso significa que cualquier tendencia entre los activos se tiene que revertir a la media--que es constante temporalmente. Para demostrar la estacionaridad se introduce el concepto de representaci\'on del error.
+
+El concepto de cointegraci\'on y de modelo de correcci\'on del error fue introducido por Engle and Granger (1987), galardonados con el premio nobel de econom\'ia 2002. A trav\'es de los trabajos de Engle y Granger se introdujo una forma robusta de identificar pares de activos para pair trading, los cuales son denominados como pares de activos cointegrados.
+
+
+\subsection{Correcci\'on del error de modelo}
+\label{sec:orgb45176a}
+
+Consideremos nuevamente dos series de tiempo \(x_t\), \(y_t\), las cuales son integradas de orden 1, \(I(1)\), las cuales son cointegradas con vector de cointegraci\'on bidimensinal \((1, -\beta)\). El modelo de correcci\'on del error viene dado por
+\[
+\Delta y_t = \phi_x (y_{t-1} - \beta x_{t-1}) + \sum_{i=1}^{p-1} \gamma_{xi} \Delta y_{t-i} + \sum_{i=1}^{q-1} \delta_{xi} \Delta x_{t-i} + \varepsilon_t
+\]
+%\[
+%\Delta y_t = \phi_y (y_{t-1} - \beta x_{t-1}) + \sum_{i=1}^{p-1} \gamma_{yi} \Delta y_{t-i} + \sum_{i=1}^{q-1} \delta_{yi} \Delta x_{t-i} + \varepsilon_t
+%\]
+donde \(\gamma_x,\gamma_y\) y \(\delta_x,\delta_y\) son los que capturan la din\'amica de corto plazo. \(\phi_x,\phi_y\) es la velocidad de ajuste al equilibrio (ver mas adelante).
+Este resultado es conocido como el teorema de representaci\'on de Granger.
+
+
+Los \'ordenes de los lags deben ser determinados por criterios de informaci\'on tales como AIC o BIC.
+
+En la practica esto se realiza a traves de dos tests de cointegracion, el metodo de Engle-Grange de dos pasos que termina en los p-values o el metodo de Johansen basado en ECM vectorial (se puede trabajar con mas de una variable/asset dependiente).
+
+\ma{Falta detallar/comentar estas metodologias!}
+
+\subsection{z-score}
+
+Si consideramos la correcci\'on del error de orden $p=0$,  
+\[
+\Delta y_t = \phi_x [y_{t-1} - (\beta x_{t-1} +\alpha)] +  \varepsilon_t
+\]
+definimos al spread por $s_t=y_{t-1} - (\beta x_{t-1} +\alpha)$ . %En principio si el termino estocastico $\varepsilon_t$ es despreciable, entonces si $y_{t-1} - (\beta x_{t-1} +\alpha)$ es positivo entonces ese desequilibrio deberia revertir  es decir que esperamos que el valor del activo $y$ va a aumentar con el tiempo. %$\Delta y_t$ es positivo 
+
+Supongamos ya demostramos que los dos activos son $I(1)$ y que el spread es $I(0)$ entonces sabes que el par esta cointegrado y podemos operar con el. Para realizar un an\'alisis de reversi\'on a la media  le sacamos a la serie de tiempo del spread la media y de esta manera nos aseguramos que la media es 0, ademas si consideramos que el spread tiene una desviacion estandard $\sigma$ entonces
+\[
+z_t = \frac{s_t - \overline s}{\sigma_s} = [y_{t}-\overline y - \beta (x_{t}-\overline x) ]/\sigma_s
+\]
+es el z-score el cual esperamos que sea una variable estocastica gaussiana de media 0 y varianza 1.
+
+
+\subsection{Unit root time series}
+\label{sec:org7e45d14}
+
+Considerando un proceso AR(1) \(x_t = \phi x_{t-1} +\epsilon_t\), si estimamos \(\phi\) por ejemplo con regresi\'on lineal entre la serie y la serie corrida en un tiempo se tiene que:
+
+
+\begin{tabular}{ll}
+Si $\phi < 1$  & proceso estacionario\\
+& el proceso revierte a la media \\
+Si $\phi = 1 $ & proceso unit root \\
+              & No es estacionario \\
+              & la varianza aumenta \\
+& la media no es constante.
+\end{tabular}
+\subsection{Augmented Dickey-Fuller test}
+\label{sec:org8006b42}
+
+Para comprobar que dos activos estan cointegrados necesito demostrar que el spread, \(s_t=y_t-\beta x_t\), es una serie estacionaria. Para esto se utiliza un test de prueba, el Augmented Dickey-Fuller test cuya hipotesis nula es que el proceso es unit root. Modelamos la serie de tiempo del spread por
+
+\[ \Delta s_t =  \phi s_{t-1} + \alpha + \beta t + \sum_{i=1}^p \gamma_i \Delta s_{t-i} + \epsilon_t \]
+donde \(\Delta s_t = s_t - s_{t-1}\) y $\phi$ es tiempo en que reversiona a la media.
+
+La prueba estadistica es:
+\[\tau = \frac{\hat{\phi} - 1}{\text{SE}(\hat{\phi})}\]
+donde SE es el error estandard de la regresi\'on lineal.
+
+\subsection{Tiempo de vida medio de reversion a la media}
+\label{sec:org787b652}
+Si en el modelo de correcci\'on del error solo consideramos el orden p=1 resulta
+\[\Delta y_t =  \alpha (y_{t-1} - \beta x_{t-1}) + \epsilon_{yt}, \]
+para que el proceso reversione a la media \(\alpha\) debe ser negativo. La otra variable viene dado por
+\[\Delta x_t =  \alpha (x_{t-1} - \beta^{-1} y_{t-1}) + \epsilon_{xt}, \]
+entonces se tiene que definiendo el spread o error como  \(z_t = y_{t} - \beta x_{t}\) y restando los modelos de error correcci\'on para ambas variables se tiene que
+\[ z_{t+1} = (1+\alpha) z_t + \epsilon_t. \]
+Si consideramos una condici\'on inicial \(z_0\) y por el momento nos concentramos en la tendencia sin tener en cuenta el ruido se tiene que
+\[ z_t = (1+\alpha)^t z_0. \]
+
+Si  queremos determinar cuanto tiempo le lleva al proceso a perder la mitad de su valor inicial, hacemos
+\[(1+\alpha)^\tau z_0 = \frac{z_0}{2} \]
+considerando que \(\alpha\) es negativo.
+\[ \tau \log (1+\alpha) =  \log{1/2} \]
+
+Se tiene que \(\tau = -\frac{\log 2}{\log (1+\alpha)}\).
+\subsection{Exponente de Hurst}
+\label{sec:org7690c3a}
+El exponente de Hurst (\(H\)) se define por el comportamiento del rango de
+\[
+\mathbb{E}\left[\frac{R(N)}{S(N)}\right] = C \cdot N^H \quad \text{as } N \to \infty,
+\]
+donde \(N\) es el largo de la serie de tiempo \(R(N)\) es el rango (max menos min) de las desviaciones acumuladas de la media, \(S(N)\) es la desviacion estandar y \(C\) es una constante.
+
+De acuerdo a si \(H\) nos da menor o mayor a 1/2 nos dice si tenemos una serie con tendencias o una serie que revierte a la media.
+\begin{table}[h]
+\centering
+\begin{tabular}{cll}
+\(H = 0.5\) & Random Walk & No memory (e.g., efficient markets). \\ 
+\(0.5 < H \leq 1\) & Persistent Series & Long-term memory (e.g., trending prices). \\ 
+\(0 \leq H < 0.5\) & Anti-Persistent Series & Mean-reverting (e.g., interest rates). \\ 
+\end{tabular}
+\caption{Behavior of time series based on Hurst exponent}
+\end{table}
+
+Una definicion alternativa presentada en Sarmento y Horta es:
+
+\subsection{Implementacion de pair trading}
+Por lo expuesto en las secciones anteriores lo primero que debemos determinar es de que orden de integracion son las series de tiempo.
+
+Por lo que podemos comenzando probar si $x_t$ e $y_t$ son I(0). Esto lo podemos ver con el test ADF o Johansen como ya los hemos introducido. En este caso \ma{podriamos trabajar con cada una por separado, aunque no sea market neutral?} Si ambas son $I(0)$ y adem\'as tambi\'en $s_t=y_t - \beta x_t$ es $I(0)$ entonces esperamos que $s_t$ tenga reversion a la media, aun cuando el par no sea cointegrado. En este caso podemos operar con el z-score como si fueran cointegradas. \ma{Cual seria la diferencia con un par cointegrado???}
+
+
+Si probamos que $x_t$ e $y_t$ son $I(1)$, para esto trabajamos con el retorno $r_t^x$ y $r_t^y$ y hacemos el ADF test. Si lo cumplen estamos en condiciones de hacer el ADF test al spread $s_t$ si lo cumple el par esta cointegrado y podemos trabajar con el z-score.
+
+Finalmente, puede suceder que una es $I(0)$ y la otra es $I(1)$ en este caso por el momento no vamos a operar.
+
+Tomemos a un conocido par Coca-Cola (KO) Pepsi (PEP.O), en este caso lsa series de tiempo entre el 2014 y 2024 tienen un p-value de 0.48, y 0.49 respectivamente. Si tomamos las diferencias los p-values son del orden de $10^{-20}$ es decir que podemos considerar ambas son $I(1)$.
+
+%\subsection{Filtros de Kalman}
+%\label{sec:org8106092}
+%\newpage
+%
+%Sean las series de tiempo $x^{Ao}_{k}, y^{Ao}_{k} $ de dos activos que asumimos cointegrados.
+%
+%El estado del KF lo vamos a asumir dado por
+%
+%\[
+%\v x_k = \begin{bmatrix} \alpha_k \\ \beta_k \\ \phi_k \\ x^A_k \end{bmatrix}
+%\]
+%
+%Las observaciones son los dos activos:
+%
+%\[
+%\v y_k = \begin{bmatrix} x^{Ao}_k \\ y^{Ao}_k  \end{bmatrix}
+%\]
+%
+%El operador observacional (no Gaussiano) es:
+%\[
+%\begin{bmatrix} x^{Ao}_k \\ y^{Ao}_k  \end{bmatrix} = \begin{bmatrix} x^{A}_k + \nu^x_k \\ \alpha_k + \beta_k x^{Ao}_k + \nu^y_k  \end{bmatrix}
+%\]
+%La alternativa no-lineal es 
+%\[
+%\begin{bmatrix} x^{Ao}_k \\ y^{Ao}_k  \end{bmatrix} = \begin{bmatrix} x^{A}_k + \nu^x_k \\ \alpha_k + \beta_k x^{A}_k + \nu^y_k  \end{bmatrix}
+%\]
+%donde \(\beta_k,x^{A}_k\) son ambos parte del estado.
+%
+%El modelo de evolucion viene dado por
+%%\[\v x\textsubscript{k} = \begin{bmatrix} \(\alpha\)\textsubscript{k} \\ \(\beta\)\textsubscript{k} \\ \(\phi\)\textsubscript{k} \\ x\textsuperscript{A}\textsubscript{k} \end{bmatrix}
+%\[
+%\v M=
+%\begin{bmatrix}
+%1 & 0 & 0 & 0 \\
+%0 & 1 & 0 & 0 \\
+%0 & 0 & 1 & 0 \\
+%0 & 0 & 0 & \phi_{k-1} \\
+%\end{bmatrix}
+%%\begin{bmatrix} \alpha_{k-1} \\ \beta_{k-1} \\ \phi_{k-1} \\ x^A_{k-1} \end{bmatrix}
+%\]
+%\newpage
+%\section{Exploración de datos}
+%\label{sec:org09d2e77}
+%
+%Lectura de la base de datos \texttt{historical\_prices.csv} y eliminación de las series de tiempo que no tienen todos los datos en el rango de tiempos requerido.
+%
+%Para trabajar con los datos es necesario identificar las tendencias y las perturbaciones a estas. Existen varios metodos para realizar esta separacion de componentes lenta/rapida de la serie de tiempo, por ejemplo a traves de una ventana movil o a traves de Fourier. En este caso vamos a usar un metodo sencillo vamos a realizar un ajuste lineal a traves de un polinomio a la serie de tiempo. 
+%
+%\begin{center}
+%\includegraphics[width=.9\linewidth]{./fig/ts_vars1.png}
+%\end{center}
+%
+%\begin{center}
+%\includegraphics[width=.9\linewidth]{./fig/ts_vars2.png}
+%\end{center}
+%
+%Como se puede ver un polinomio de grado 5 es suficiente para eliminar las tendencias (background). Estas fueron realizadas con el \texttt{read\_data.py} funcion \texttt{meanvar\_ts}
+%
+%Como se modela con el modelo dinamico esta media y las perturbaciones sobre esta? quizas se puede pensar en:
+%
+%\[ x_k = f_p(t_k) + M (x_k - f_p(t_{k-1})) \]
+%donde \(f_p(t_k)\) es la media obtenida con un polinomio de algun grado (se uso 5). En este caso perdemos todo tipo de sensibilidad a la media. Quizas se pueda trabajar con dos modelos, uno a escala de tiempo cortas mientras otro sea de mas larga escala y tenga que ver mas con las tendencias de largo plazo?
+%
+%Dado los valores perturbados (sin sus medias) los histogramas resultantes son:
+%
+%\begin{center}
+%\includegraphics[width=.9\linewidth]{./fig/histo_1.png}
+%\end{center}
+%
+%\begin{center}
+%\includegraphics[width=.9\linewidth]{./fig/histo_2.png}
+%\end{center}
+%
+%En general la medida de no-gaussianidad medida con la KLD es del orden de 0.05 hay una sola serie (CLMT.O) la cual tiene una KLD=0.13.
+%
+%
+%Series de tiempo de las empresas  mas correlacionadas con la serie de tiempo de Exxon.  Queremos buscar las empresas que brinden informacion predictiva de Exxon. Para el analisis se trabaja con las perturbaciones, como se determinaron con el ajuste polinomico. Otra alternativa es utilizar el logaritmo de las diferencias sucesivas que parece ser bastante popular, sin embargo por lo visto aqui con el filtrado de la media realizado las series tienen un comportamiento muy cercano al gausiano. De hecho como se vera mas abajo, realizar una transformacion de copular Gaussiana a los datos ("normalizacion") no parece tener un impacto apreciable.
+%
+%
+%Correlation
+%
+%\begin{center}
+%\begin{tabular}{rrrrr}
+%\hline
+%HES & VLO & CVX & EOG & FANG.O\\
+%0.880 & 0.861 & 0.851 & 0.84672413 & 0.8328526\\
+%\hline
+%\end{tabular}
+%\end{center}
+%
+%Mutual information
+%
+%\begin{center}
+%\begin{tabular}{rrrrr}
+%\hline
+%HES & CVX & VLO & EOG & MPC\\
+%0.903 & 0.895 & 0.826 & 0.768 & 0.739\\
+%\hline
+%\end{tabular}
+%\end{center}
+%
+%Copula + Mutual information
+%
+%\begin{center}
+%\begin{tabular}{rrrrr}
+%\hline
+%HES & CVX & VLO & EOG & FANG.O\\
+%0.907 & 0.897 & 0.830 & 0.745 & 0.736\\
+%\hline
+%\end{tabular}
+%\end{center}
+%
+%Transfer Entropy
+%
+%\begin{center}
+%\begin{tabular}{rrrrr}
+%\hline
+%GLNG.O & MPC & HES & BTU & EOG\\
+%0.136 & 0.115 & 0.091 & 0.087 & 0.077\\
+%\hline
+%\end{tabular}
+%\end{center}
+%
+%Aunque hay algo de sensibilidad y leves diferencias en la medidas se puede concluir que la correlacion, mutual informacion y copula-mutual information dan esencialmente metricas muy parecidas.  En el caso de la transfer entropy (este es un flujo causal, impacto de otra serie sobre la prediccion de Exxon por sobre lo que tiene la propia serie), existen importantes diferencias. La transfer entropy es exactamente igual a la Granger causality cuando las distribuciones son Gaussianas.
+%
+%Cuanta informacion hay en los dias previos de las otras acciones sobre el valor de la accion de Exxon. Esto lo medimos con Mutual information with time lag (lagged-mi). 
+%
+%\begin{center}
+%\includegraphics[width=.9\linewidth]{./fig/mi_1.png}
+%\end{center}
+%
+%Mientras HES y CVX son las empresas mas correlacionaas con XON en time-lag de 0-1 dia es interesante que VLO posee mayor informacion de XON a 5 dias .
+%
+%\section{Predicción usando un HMM estimado con EM-EnKF}
+%\label{sec:org4c4f84c}
+%
+%Proponemos trabajar con un a hidden Markov model para el aprendizaje y prediccion de las series de tiempo, para luego utilizar como fuente de estrategias de inversion. Para esto se selecciona un conjunto pequeño de variables (precio de cierre de activos) que presenta  mas alta correlacion con la variable de interés por ejemplo ExxonMobil (XOM).
+%
+%Definimos un hidden Markov model (HMM) lineal o también denominado state-space model (SSM) por, una ecuación de predicción estocástica y un operador observacional estocástico, 
+%\[ \v x_{k} = \v M_k \v x_{k-1} + \gv \eta_k, \]
+%
+%\[ \v y_{k} = \v H \v x_k + \gv \nu_k, \]
+%donde \(\v x_{k}\) es el estado oculto, \(\v y_k\) representa las observaciones del sistema, \(\v H\) es el operador de observación asumido fijo, \(\v M_k\) es la matriz de transición, el error de modelo es \(\gv \eta_k \sim \mathcal N(\v 0, \v Q)\) y el error observacional \(\gv \nu_k \sim \mathcal N(\v 0, \v R)\) asumimos que las covarianzas del error de modelo y de las observaciones son estacionarias por el momento (en el rango de tiempos donde estaremos estimando estos parámetros).
+%
+%Del HMM conocemos una serie de tiempos de las observaciones \(\v y_{1:K}=\{\v y_1 \cdots \v y_K\}\) y además conocemos \(\v H\) (asumido fijo) mientras el resto de los parámetros y variables del HMM son desconocidos, \(\v M_k\), \(\v R\), \(\v Q\), y \(\v x_k\) y seran estimados por la metodología usando las observaciones.
+%
+%El modelo estimado usando con 6 meses de datos y se utilizara un par de a\textasciitilde{}nos para su validacion determinando el retorno. La ventana de observaciones se utilizara en forma movil para ir actualizando los parametros del sistema en forma suave. Hay varios hiperparametros que se pueden optimizar con esta metodologia.
+%
+%\subsection{Estimación con el EM-EnKF}
+%\label{sec:org50b4ba6}
+%
+%
+%Se propone representar la evolución del sistema con un HMM/SSM en el cual se utilizará 10 variables de estado. Por otro lado se tienen 6 observaciones (correspondientes a las 6 empresas mas correlacionadas). Es decir que tenemos 4 variables ocultas las cuales tratarán de explicar aspectos no predichos con el modelo de Markov de las variables observadas usando tiempos pasados. El modelo dinámico \(\v M_k\) a proponer es un modelo lineal. El \(\v H\) es solo una proyección del estado a las variables observadas.
+%
+%Se propone trabajar con el filtro de Kalman por ensambles con un estado aumentado. El estado aumentado contiene 110 dimensiones, correspondientes a las variables y a los parámetros del modelo \(M\) del sistema.
+%
+%Usando un set de \(K\) observaciones pasadas recientes \(\v y_{k-l-K}:\v y_{k-l}\), se usa el algoritmo de Expectation-Maximization (acoplados al filtro de Kalman y un smoother) para estimar el \(\v Q\) y el \(\v R\) del sistema, mientras dentro del estado se estan estimando parámetros adaptativos \(\v M_k\) y variables \(\v x_k\). 
+%
+%Una vez estimados los parámetros se hacen predicciones desde \(k-l\) (inicializando a partir del estado \(x_{k-l}^a\) y usando el modelo \(\v M_{k-l}\)) a \(k\), \(\v x_{k}^f\)  estas predicciones se comparan con las observaciones en el mismo tiempo \(|\v y_k - \v H \overline{\v x}_{k}^f|\) si estos residuales se encuentran fuera de algun umbral pre-establecido se decide la estrategia de inversión. Considerando que la predicción del modelo es la media del activo y esperando que el activo haga reversión a la media.
+%
+%Aun no estoy convencido que utilizando diferencias entre dos activos apareados como variables del sistema pueda ser beneficioso para la prediccion en este esquema. Para mi trabajar con diferencias entre las series de tiempo sigue siendo una variable aleatoria y no agrega predictibilidad en el EM comparado a cuando utilizamos las dos variables, asumiendo podemos hacer una buena prediccion de la media de ambas variables y detectar las correlaciones que estas tienen entre si. Si como estrategia de inversion una vez realizada la prediccion por el HMM se podria utilizar el concepto de pair trading.
+%
+%\subsection{Experimentos}
+%\label{sec:org7778bc2}
+%
+%
+%\subsubsection{Linear EM}
+%\label{sec:orgc5eeb1f}
+%
+%Uso de 4 variables observadas y una latente. El EM converge adecuadamente usando 200 dias/observaciones. Hay que cambiar de periodo seeguramente el covid introdujo no-estacionaridad (colapso del valor de las petroleras.
+%
+%\begin{center}
+%\includegraphics[width=.9\linewidth]{./fig/linear_em_vars.png}
+%\end{center}
+%
+%La verosimilitud  muestra un consistente creciemiento en las iteraciones del EM (40).
+%
+%
+%\subsubsection{EM - augmented EnKF. Time-dependent parameters}
+%\label{sec:orgfa971cd}
+%Esta explotando. Mucha sensibilidad a parametros iniciales????
+%
+%\subsection{Potenciales experimentos a realizar}
+%\label{sec:org74a945b}
+%\begin{itemize}
+%\item Utilizar un intervalo de tiempos para pre-entrenamiento y luego la estimacion del intervalo actual con condiciones iniciales las estimadas en pre-entrenamiento.
+%\item Incorporar una estructura de covarianza que varie en el tiempo, por ejemplo mediante un modelo GARCH,  en $\v P^f$ o en $\v Q$.
+%\item Regularizacion del modelo, ya sea asumiendo cambios lentos o asumiendo shrinkage al modelo lineal fijo (Estimado con EM-KF-regresion lineal sobre los 6 meses). 
+%\item Modelo con dos escalas de tiempo.
+%\end{itemize}
+%
+%Modelo GARCH:
+%
+%\begin{equation}
+%\sigma_t^2 = \alpha_0 + \sum_{i=1}^{q} \alpha_i \epsilon_{t-i}^2 + \sum_{j=1}^{p} \beta_j \sigma_{t-j}^2
+%\end{equation}
+%donde \(\epsilon_{t}= \sigma_t z_t\),  \(z_t\sim\mathcal N(0,1)\), entonces los parametros \(\alpha_i\) y \(\beta_i\) son los parametros a estimar.
+%
+%Que otra cosa se puede usar para hacer shrinkage? Referencias de shrinkage en economia:
+%
+%\url{https://apps.unive.it/server/eventi/26795/2019\_JE\_bitto\_SFS.pd}
+%\url{https://arxiv.org/pdf/2312.10487}
+%
+%Parsimony inducing priors for large scale state space models Hedibert F. Lopes a b, Robert E. McCulloch a, Ruey S. Tsay c
+%
+%\section{Cointegration vs EnKF}
+%\label{sec:orgb93e394}
+%
+%Se realizaron dos formas de cointegration una de diagnostico que calcula el beta y el promedio del spread en el mismo intervalo donde se realiza la inversion (diag).
+%
+%Mientras se realiza otro esquema de cointegracion que es de prediccion usando los dias previos para calcular el beta y la media (pred).
+%
+%Elegimos un par de activos que tiene un p-value bajo y en modo diagnostico permitenm una buena ganancia:  GPRE.O-OKE
+%
+\end{document}
