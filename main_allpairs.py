@@ -7,120 +7,86 @@
 import numpy as np, os, copy
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import copy
 from time import time
 
 from read_data import load_ts
 import arbitrage as ar
+import plotting as gra
+import cointegration as co
+import utils
 
 class cnf:
     pathdat='dat/'
     tipo='asset' # 'asset', 'return', 'log_return', 'log'
-    mtd = 'kf'# 'kf' 'exp' 'on' 'off'
-    Ntraining = 1000 # length of the training period
-    beta_win=61   #21
-    zscore_win=31 #11
+    mtd = 'on'# 'kf' 'exp' 'on' 'off'
+    Ntraining = 2*252 # length of the training period
+    Npred=Ntraining+252
+    beta_win=121   #21
+    zscore_win=41 #11
     sigma_co=1.5 # thresold to buy
     sigma_ve=0.1 # thresold to sell
-    nmax=10#-1 # number of companies to generate the pairs (-1 all, 10 for testing)
+    nmax=-1 # number of companies to generate the pairs (-1 all, 10 for testing)
     nsel=100# 100 # number of best pairs to select
     fname=f'tmp/all_pair_{mtd}_' # fig filename
+    linver_betaweight=0
     #industry='oil'
     industry='beverages'
-            
+    shorten=0
+    
 # load data
 day,date,price,company = load_ts(sector=cnf.industry, pathdat=cnf.pathdat)
 
 # select training period
-assets_tr=price[:cnf.nmax,:cnf.Ntraining]
+assets_tr=price[:cnf.nmax,:cnf.Npred]
 
 t0 = time()
 res = ar.all_pairs(assets_tr,company[:cnf.nmax],cnf)
 print('Tiempo:  ',time()-t0)
 
+res2=copy.deepcopy(res)
+
 # Select nsel best pairs
-idx = np.argsort(res.capital[:,-1])[::-1][:cnf.nsel]
+idx = np.argsort(res.capital[:,cnf.Ntraining])[::-1][:cnf.nsel]
 res.reorder(idx) # ordeno todo los resultados segun el capital
-
-for cap in res.capital[:,-1]:
-    print(cap)
-
-for company_pair in res.company:
-    print(company_pair)
-
-metrics = ar.stats(res.assets,'log')
-
-def vertical_bar(axs,compras,ccompras):
-    ''' Plot the entrada y salida de posiciones '''
-    start_indices, end_indices= utils.calc_startend(compras[:,None])
-    start_cindices, end_cindices= utils.calc_startend(ccompras[:,None])
-
-    indices=np.arange(compras.shape[0])
-    for ax in axs:
-        for start, end in zip(start_indices[0], end_indices[0]):
-            ax.axvspan(indices[start], indices[end], alpha=0.3, color='green')
-        for start, end in zip(start_cindices[0], end_cindices[0]):
-            ax.axvspan(indices[start], indices[end], alpha=0.3, color='red')
-    
-def plot_zscore(j,res0,fname):
-    nt=res0.spread.shape[1]
-
-    res = copy.deepcopy(res0) 
-    res.reorder(j) # select the pair
-
-    figfile=fname+f'zscore{j}.png'
-    fig = plt.figure(figsize=(7, 5))
-
-    gs = gridspec.GridSpec(2, 2, height_ratios=[1, 1])
-
-    ax1 = fig.add_subplot(gs[0, 0])
-    ax1.plot(res.assets[0],label=res.company[0])
-    ax1.plot(res.assets[1],label=res.company[1])
-    ax1.legend()
-    ax1.set_title('Assets')
-
-    ax2 = fig.add_subplot(gs[0, 1])
-    ax2.plot(range(nt),res.spread)
-    ax2.plot(range(nt),res.spread_mean)
-    ax2.fill_between(range(nt), res.spread_mean - 1.96* res.spread_std,
-                     res.spread_mean +1.95* res.spread_std,color='gray', alpha=0.2)
-    ax2.set_title('Spread')
-
-    ax3 = fig.add_subplot(gs[1, :])
-    ax3.plot(res.zscore)
-    ax3.set_title('Z-score')
-
-    vertical_bar([ax3],res.compras,res.ccompras)
-    
-    plt.tight_layout()
-    fig.savefig(figfile)
-    plt.close()
+cap_pred=utils.returns_from(res.capital,cnf.Ntraining)
 
 
-def plot_capital_single(j,res0,fname):
-    nt=res0.spread.shape[1]
-    res = copy.deepcopy(res0) 
-    res.reorder(j) # select the pair
-    
-    figfile=cnf.fname+f'capital{j}.png'
-    
-    fig, ax = plt.subplots(3,1,figsize=(7,7))
-    ax[0].plot(res.zscore)
-    ax[0].set_title('Z-score')
-    
+metrics = co.all_pairs_stats(assets_tr[:,:cnf.Ntraining],company,'asset')
+idx = np.argsort(metrics.pvalue)[:cnf.nsel]
+res2.reorder(idx) # ordeno todo los resultados segun el p-value
+cap_pred2=utils.returns_from(res2.capital,cnf.Ntraining)
 
-    for ivar in range(res.corto.shape[-1]):
-        ax[1].plot(res.corto[:,ivar],label='corto '+res.company[ivar])
-    ax[1].legend()
+figfile=cnf.fname+'capital.png'
+fig, ax = plt.subplots(3,1,figsize=(7,7))
+ax[0].plot(res.capital[:10,:].mean(0))
+ax[0].plot(res.capital[:20,:].mean(0))
+ax[0].plot(res.capital[:40,:].mean(0))
+ax[0].set(title='capital')
+ax[1].plot(cap_pred[:10,:].mean(0))
+ax[1].plot(cap_pred[:20,:].mean(0))
+ax[1].plot(cap_pred[:40,:].mean(0))
+ax[1].plot(cap_pred2[:10,:].mean(0),'--C0')
+ax[1].plot(cap_pred2[:20,:].mean(0),'--C1')
+ax[1].plot(cap_pred2[:40,:].mean(0),'--C2')
+ax[1].set(title='capital pred')
+ax[2].plot(res2.capital[:10,:].mean(0))
+ax[2].plot(res2.capital[:20,:].mean(0))
+ax[2].plot(res2.capital[:40,:].mean(0))
+ax[2].set(title='capital pvalue')
+plt.tight_layout()
+fig.savefig(figfile)
+plt.close()
 
-    for ivar in range(res.corto.shape[-1]):
-        ax[2].plot(res.largo[:,ivar],label='largo '+res.company[ivar])
-    ax[2].legend()
+quit()
+#for cap in res.capital[:,-1]:
+#    print(cap)
+#
+#for company_pair in res.company:
+#    print(company_pair)
 
-    vertical_bar(ax,res.compras,res.ccompras)
+metrics = co.stats(res.assets,'log')
 
-    plt.tight_layout()
-    fig.savefig(figfile)
-    plt.close()
 
 figfile=cnf.fname+'capital.png'
 fig, ax = plt.subplots(3,1,figsize=(7,7))
@@ -135,10 +101,10 @@ fig.savefig(figfile)
 plt.close()
 
 
-plot_zscore(0,res,cnf.fname)
-plot_zscore(1,res,cnf.fname)
-plot_capital_single(0,res,cnf.fname)
-plot_capital_single(1,res,cnf.fname)
+gra.plot_zscore(0,res,cnf.fname)
+gra.plot_zscore(1,res,cnf.fname)
+gra.plot_capital_single(0,res,cnf.fname)
+gra.plot_capital_single(1,res,cnf.fname)
 
 
 figfile=cnf.fname+f'scatters.png'

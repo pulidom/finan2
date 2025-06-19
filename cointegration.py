@@ -7,6 +7,7 @@ from statsmodels.tsa.stattools import adfuller
 from hurst import compute_Hc as hurste
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
 from sklearn.linear_model import LinearRegression
+from itertools import permutations
 import utils
 from utils import (rolling, erolling, crolling,
                    rolling_meanvar, exp_mean, mean_function, meanvar,
@@ -121,7 +122,14 @@ def half_life_penalty(hl):
         return (hl - 15) / 6
     else:
         return 1.0
-
+    
+def all_pairs_stats(assets,company,tipo):
+     assets_l = list(permutations(assets, 2))
+     company_l = list(permutations(company, 2))
+     metrics=stats(assets_l,tipo)
+     metrics.company_l=company_l
+     return metrics
+ 
 def stats(assets_l,tipo):
     ''' compute statistics with the spread in a period'''
     

@@ -1,6 +1,8 @@
 ''' Codigos computacionales. medias etc
 '''
 import numpy as np
+from scipy.stats import linregress
+from statsmodels.tsa.stattools import adfuller
 def select_variables(x,y,tipo='asset'):
     ''' Selecciona la variable y el retorno normalizado correspondiente
         para calculo de ganancia
@@ -178,3 +180,13 @@ def calc_startend(bool_arr):
         end_indices.append(end_indice)
         
     return start_indices, end_indices
+
+def returns_from(capital,jday):
+    ''' Recalculo el rendimiento a partir de un dia '''
+    rets=(capital.T[jday+1:]-capital.T[jday:-1])/capital.T[jday:-1]
+    caps=np.zeros((rets.shape[0]+1,rets.shape[1]))
+
+    caps[0,:]=100
+    for i in range(1,caps.shape[0]):
+        caps[i] = caps[i-1]*(1+rets[i-1])
+    return caps.T
