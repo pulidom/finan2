@@ -166,7 +166,7 @@ def capital_invertido(nret_x,nret_y,compras,ccompras,beta=None):
      '''
     
     corto, largo = np.zeros((2,nret_x.shape[0],2))
-    capital =  np.zeros( nret_x.shape[0] )
+    capital,retorno = np.zeros(( 2,nret_x.shape[0] ))
     largo[0] = 100
     corto[0] = 100
     capital[0] = 100
@@ -178,24 +178,26 @@ def capital_invertido(nret_x,nret_y,compras,ccompras,beta=None):
             w_x=1/(1+np.abs(beta[it]))
             w_y=np.abs(beta[it])/(1+np.abs(beta[it]))
         
-        if compras[it] > 0: 
-            capital[it+1] = capital[it] * (1+0.5*(w_x * nret_x[it]-w_y *nret_y[it]))
+        if compras[it] > 0:
+            retorno[it+1] = 0.5*(w_x * nret_x[it]-w_y *nret_y[it])
+            capital[it+1] = capital[it] * (1+retorno[it+1])
             largo[it+1,0] = largo[it,0] * (1+w_x*nret_x[it]) 
             corto[it+1,1] = corto[it,1] * (1-w_y*nret_y[it])
         else:
             largo[it+1,0] = largo[it,0]
             corto[it+1,1] = corto[it,1]
         if ccompras[it] > 0:
+            retorno[it+1] = 0.5*(-w_x*nret_x[it]+w_y*nret_y[it])
             largo[it+1,1] = largo[it,1] * (1+w_y*nret_y[it]) 
             corto[it+1,0] = corto[it,0] * (1-w_x*nret_x[it])
-            capital[it+1] = capital[it] * (1+ 0.5*(-w_x*nret_x[it]+w_y*nret_y[it]))
+            capital[it+1] = capital[it] * (1+retorno[it+1])
         else:
             largo[it+1,1] = largo[it,1]
             corto[it+1,0] = corto[it,0]
         if compras[it] == 0 and ccompras[it] == 0:
             capital[it+1] = capital[it]
-    #capital=largo.sum(1)+corto.sum(1)
-    return largo, corto,capital
+        #capital=largo.sum(1)+corto.sum(1)
+    return largo, corto,capital,retorno
 
 def inversion(x,y,cnf,shorten=0):
     ' Hago todo el proceso on-line para un par de assets '
@@ -212,7 +214,7 @@ def inversion(x,y,cnf,shorten=0):
         setattr(cnf, 'linver_betaweight', 0)
 
     beta = b if cnf.linver_betaweight else None
-    largo0, corto0, capital0 = capital_invertido(nret_x,nret_y,
+    largo0, corto0, capital0,retorno0 = capital_invertido(nret_x,nret_y,
                                                  compras0,ccompras0,
                                                  beta=beta)
 
@@ -220,7 +222,7 @@ def inversion(x,y,cnf,shorten=0):
         res={'capital':capital0}
     else:
         res={
-            'largo':largo0, 'corto':corto0, 'capital':capital0,
+            'largo':largo0, 'corto':corto0, 'capital':capital0, 'retorno':retorno0,
             'compras':compras0, 'ccompras':ccompras0, 'zscore':zscore0,
             'beta':b, 'spread':s, 'spread_mean':sm, 'spread_std':ss }
     return res

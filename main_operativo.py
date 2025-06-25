@@ -2,7 +2,7 @@
        z-scores 
             Choice of beta calculacion: regresion / kalman filter
             Choice of averaging:
-                  Using moving average window / exponential mean averaging / kalman filter      
+                  Using moving average window / exponential mean averaging / kalman filter  Todos los tiempos. Single set of parameters. Compara dos experimentos.    
 '''
 import numpy as np, os, copy
 import matplotlib.pyplot as plt
@@ -21,7 +21,7 @@ class cnf:
     tipo='asset' # 'asset', 'return', 'log_return', 'log'
     mtd = 'on'# 'kf' 'exp' 'on' 'off'
     Ntraining = 2*252 # length of the training period
-    Npred=Ntraining+252
+    Njump = 84
     beta_win=121   #21
     zscore_win=41 #11
     sigma_co=1.5 # thresold to buy
@@ -30,53 +30,75 @@ class cnf:
     nsel=100# 100 # number of best pairs to select
     fname=f'tmp/all_pair_{mtd}_' # fig filename
     linver_betaweight=0
-    industry='oil'
-    #industry='beverages'
+    #industry='oil'
+    industry='beverages'
     shorten=0
     
 # load data
 day,date,price,company = load_ts(sector=cnf.industry, pathdat=cnf.pathdat)
 
+
+caps = [[] for _ in range(6)]  
+
+nt=price.shape[1]
+iini=0
 # select training period
-assets_tr=price[:cnf.nmax,:cnf.Npred]
+for ilast in range(cnf.Ntraining+cnf.Njump,nt,cnf.Njump):
+    print(iini,ilast,ilast-iini)
+    
+    assets_tr=price[:cnf.nmax,iini:ilast]
 
-t0 = time()
-res = ar.all_pairs(assets_tr,company[:cnf.nmax],cnf)
-print('Tiempo:  ',time()-t0)
+    print(assets_tr.shape)
+    iini+=cnf.Njump
+    
+ 
+    t0 = time()
+    res = ar.all_pairs(assets_tr,company[:cnf.nmax],cnf)
+    print('Tiempo:  ',time()-t0)
 
-res2=copy.deepcopy(res)
+    res2=copy.deepcopy(res)
 
-# Select nsel best pairs
-idx = np.argsort(res.capital[:,cnf.Ntraining])[::-1][:cnf.nsel]
-res.reorder(idx) # ordeno todo los resultados segun el capital
-cap_pred=utils.returns_from(res.capital,cnf.Ntraining)
+    # Select nsel best pairs
+    idx = np.argsort(res.capital[:,ilast-cnf.Njump-iini])[::-1][:cnf.nsel]
+    res.reorder(idx) # ordeno todo los resultados segun el capital
+    #cap_pred=utils.returns_from(res.capital,cnf.Ntraining)
 
 
-metrics = co.all_pairs_stats(assets_tr[:,:cnf.Ntraining],company,'asset')
-idx = np.argsort(metrics.pvalue)[:cnf.nsel]
-res2.reorder(idx) # ordeno todo los resultados segun el p-value
-cap_pred2=utils.returns_from(res2.capital,cnf.Ntraining)
+    metrics = co.all_pairs_stats(assets_tr[:,:ilast-cnf.Njump],company,'asset')
+    idx = np.argsort(metrics.pvalue)[:cnf.nsel]
+    res2.reorder(idx) # ordeno todo los resultados segun el p-value
+    #cap_pred2=utils.returns_from(res2.capital,cnf.Ntraining)
 
+    print('retorno',res.retorno.shape)
+    caps[0].append(res.retorno[:5,cnf.Ntraining:].mean(0))
+    caps[1].append(res.retorno[:10,cnf.Ntraining:].mean(0))
+    caps[2].append(res.retorno[:20,cnf.Ntraining:].mean(0))
+    caps[3].append(res2.retorno[:5,cnf.Ntraining:].mean(0))
+    caps[4].append(res2.retorno[:10,cnf.Ntraining:].mean(0))
+    caps[5].append(res2.retorno[:20,cnf.Ntraining:].mean(0))
+    
+rets = np.array([np.concatenate(cap) for cap in caps])
+print(rets.shape)
+caps=np.zeros_like(rets)
+print(caps.shape)
+caps[:,0]=100
+for i in range(6):
+    caps[i,1:] = caps[i,0] * np.cumprod(1 + rets[i,1:])
+
+    
 figfile=cnf.fname+'capital.png'
-fig, ax = plt.subplots(3,1,figsize=(7,7))
-ax[0].plot(res.capital[:10,:].mean(0))
-ax[0].plot(res.capital[:20,:].mean(0))
-ax[0].plot(res.capital[:40,:].mean(0))
-ax[0].set(title='capital')
-ax[1].plot(cap_pred[:10,:].mean(0))
-ax[1].plot(cap_pred[:20,:].mean(0))
-ax[1].plot(cap_pred[:40,:].mean(0))
-ax[1].plot(cap_pred2[:10,:].mean(0),'--C0')
-ax[1].plot(cap_pred2[:20,:].mean(0),'--C1')
-ax[1].plot(cap_pred2[:40,:].mean(0),'--C2')
-ax[1].set(title='capital pred')
-ax[2].plot(res2.capital[:10,:].mean(0))
-ax[2].plot(res2.capital[:20,:].mean(0))
-ax[2].plot(res2.capital[:40,:].mean(0))
-ax[2].set(title='capital pvalue')
+fig, ax = plt.subplots(1,1,figsize=(7,5))
+ax.plot(caps[0],label='cap 5')
+ax.plot(caps[1],label='cap 10')
+ax.plot(caps[2],label='cap 20')
+ax.plot(caps[3],'--C0',label='pval 5')
+ax.plot(caps[4],'--C1',label='pval 10')
+ax.plot(caps[5],'--C1',label='pval 20')
+ax.set(title='capital testing')
 plt.tight_layout()
 fig.savefig(figfile)
 plt.close()
+
 
 quit()
 #for cap in res.capital[:,-1]:
