@@ -31,7 +31,7 @@ class cnf:
     fname=f'tmp/all_pair_{mtd}_' # fig filename
     linver_betaweight=0
     #industry='oil'
-    industry='beverages'
+    industry='oil'
     shorten=0
     
 # load data

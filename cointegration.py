@@ -141,17 +141,21 @@ def stats(assets_l,tipo):
     score0=[]
     johansen0=[]
     for (x,y) in assets_l:
-        x,y,_,_ = utils.select_variables(x,y,tipo)
-        spread ,_= calculate_spread_off(x,y)
-        p=adf_test(spread)
-        pvalue0.append(p)
-        H,_,_ = hurste(spread)
-        hurst0.append(H)
-        hl= half_life(spread)
-        half_life0.append(hl)
-        score0.append(cointegration_score(p,H,hl))
+        x,y,_,_   = utils.select_variables(x,y,tipo)
+        spread ,_ = calculate_spread_off(x,y)
+        
+        p      = adf_test(spread)
+        H,_,_  = hurste(spread)
+        hl     = half_life(spread)
         result = coint_johansen(np.array([x,y]).T, det_order=0, k_ar_diff=1)
-        johansen0.append(result.lr1[0]-result.cvt[0, 1])
+        j      = result.lr1[0]-result.cvt[0, 1]
+        sc     = cointegration_score(p,H,hl,j)
+        
+        pvalue0.append(p)
+        hurst0.append(H)
+        half_life0.append(hl)
+        johansen0.append(j)
+        score0.append(sc)
         #positive values reject H0 non-stationarity
         #print("Trace test critical values (90%, 95%, 99%):", result.cvt)
     class metrics:
@@ -170,11 +174,30 @@ def sharpe_ratio(capital):
     sharpe = (cagr - risk_free_rate) / volatility
     return sharpe 
 
-def cointegration_score(adf_pval, hurst, half_life):
+def cointegration_score(adf_pval, hurst, half_life,johansen):
     ''' Metrica ad-hoc que combina p-value, hurst, y half life '''
+    #print('la primera',adf_pval, hurst , half_life,johansen)
     pval_score = np.clip(adf_pval, 0, 1)
     hurst_score = np.clip(hurst, 0, 1)
     hl_score = half_life_penalty(half_life)
-    
-    score = 0.4 * 10 * pval_score + 0.3 * hurst_score + 0.3 * hl_score
+    hl = half_life
+    #print(f'laseunda {pval_score:.4f} {hurst_score:.4f} {hl_score:.4f} {johansen:.4f}')
+    #score = list[0] * pval_score + list[1] * hurst_score + list[2] * hl_score + list[3] *johansen
+    score = 0 * 10 * pval_score + 0 * hurst_score + 0 * hl_score + 0 * johansen + hl
     return score
+
+### @ContardiG
+def compute_weights(metric_values):
+    ''' Normaliza los scores para obtener pesos que sumen 1 '''
+    values = np.asarray(metric_values, dtype=np.float64)
+
+    # Asegura que no haya negativos ni NaNs
+    values = np.nan_to_num(values, nan=0.0, posinf=0.0, neginf=0.0)
+    values = np.clip(values, a_min=0, a_max=None)  # Reemplaza negativos con 0
+
+    total = np.sum(values)
+    if total == 0:
+        # Si todos los valores son cero, asigna pesos iguales
+        return np.ones_like(values) / len(values)
+
+    return values / total
