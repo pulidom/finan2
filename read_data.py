@@ -4,6 +4,10 @@
     load_ts: Read an npz file with the time series to analyze
     csv2npz: Read  csv file, clean the data (select companies with whole time series and save in an npz
 
+    @ContardiG
+    Agregué la función load_all_ts para hacer el matching de todos los pares
+
+
 '''
 import numpy as np, os
 import pandas as pd
@@ -155,3 +159,29 @@ def csv2npz(init_date='2014-01-01',end_date='2024-12-31',
 
 if __name__=="__main__":
     csv2npz(init_date='2014-01-01',end_date='2024-12-31')
+
+### @ContardiG
+
+def load_all_ts(sectors=None, pathdat='./dat/',
+                init_date='2014-01-01', end_date='2024-12-31'):
+    """
+    Carga datos de TODOS los sectores (o lista de sectores) y los combina.
+    Devuelve day, dates, price, company.
+    """
+    if sectors is None:
+        sectors = list(sector_d.keys())
+
+    all_prices = []
+    all_companies = []
+
+    for sec in sectors:
+        day, dates, price, company = read_npz(sector=sec, pathdat=pathdat,
+                                              init_date=init_date, end_date=end_date)
+        all_prices.append(price)
+        all_companies.append(company)
+
+    combined_price = np.vstack(all_prices)  # stack all rows
+    combined_company = np.concatenate(all_companies)
+
+    # day y dates deberían coincidir en todos los sectores (siempre mismo rango temporal)
+    return day, dates, combined_price, combined_company
