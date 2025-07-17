@@ -61,7 +61,7 @@ def online_zscores(x, y,
             if it >= zscore_win:
                 spread_win = spread[it-zscore_win+1:it+1] # incluye el it
                 spread_mean[it],spread_std[it] = mean_fn(spread_win)
-                zscore[it] = (spread[it] - spread_mean[it]) / spread_std[it]
+                zscore[it] = (spread[it] - spread_mean[it]) / (spread_std[it]+10**-18)
     elif mtd == 'kf':
         alpha,beta = kalman_cointegration(x,y,sigma_eps=1.0, # all the alpha, beta time series
                                           sigma_eta_alpha=0.01, sigma_eta_beta=0.01)
@@ -272,5 +272,105 @@ def given_pairs_multiparam(assets_l,company_l,cnf):
         res_l.append( res_d )
         
     return utils.Results(res_l) 
+
+
+
+### @ContardiG
+
+def invierte_dinamico(zscore, sigma_co=1.5, sigma_ve=0.5, delta_z=0.5):
+    n = len(zscore)
+    long_levels = np.zeros(n, dtype=int)
+    short_levels = np.zeros(n, dtype=int)
+    
+    in_long = False
+    in_short = False
+    last_z = 0.0
+    
+    for t in range(n):
+        z = zscore[t]
+        
+        if in_long:
+            if z > sigma_ve:
+                step_increase = int((z - last_z) // delta_z)
+                if step_increase > 0:
+                    long_levels[t] = long_levels[t-1] + step_increase
+                else:
+                    long_levels[t] = long_levels[t-1]
+            else:
+                in_long = False
+                long_levels[t] = 0
+        else:
+            if z > sigma_co:
+                in_long = True
+                long_levels[t] = 1
+        
+        if in_short:
+            if z < -sigma_ve:
+                step_increase = int((last_z - z) // delta_z)
+                if step_increase > 0:
+                    short_levels[t] = short_levels[t-1] + step_increase
+                else:
+                    short_levels[t] = short_levels[t-1]
+            else:
+                in_short = False
+                short_levels[t] = 0
+        else:
+            if z < -sigma_co:
+                in_short = True
+                short_levels[t] = 1
+        
+        last_z = z
+    
+    return long_levels, short_levels
+
+
+def capital_invertido_dinamico(nret_x, nret_y, long_levels, short_levels,
+                                zscore, beta=None, base_size=50, add_size=25):
+    """
+    Calcula capital invertido dinámicamente:
+      - Tamaño inicial = base_size
+      - Cada incremento de nivel añade add_size
+    Mantiene beta weighting.
+    """
+    n = len(nret_x)
+    capital = np.zeros(n)
+    capital[0] = 100
+    retorno = np.zeros(n)
+    
+    for t in range(n-1):
+        if beta is None:
+            w_x = w_y = 1
+        else:
+            w_x = 1 / (1 + np.abs(beta[t]))
+            w_y = np.abs(beta[t]) / (1 + np.abs(beta[t]))
+        
+        size_long = base_size + (long_levels[t]-1)*add_size if long_levels[t] > 0 else 0
+        size_short = base_size + (short_levels[t]-1)*add_size if short_levels[t] > 0 else 0
+        
+        
+        if long_levels[t] > 0:
+            retorno[t+1] += (size_long/100) * (w_x * nret_x[t] - w_y * nret_y[t])
+        
+        if short_levels[t] > 0:
+            retorno[t+1] += (size_short/100) * (-w_x * nret_x[t] + w_y * nret_y[t])
+        
+        capital[t+1] = capital[t] * (1 + retorno[t+1])
+    
+    return capital, retorno
+
+
+def inversion_dinamica(x, y, cnf):
+    x, y, nret_x, nret_y = utils.select_variables(x, y, tipo=cnf.tipo)
+    zscore, beta, spread, sm, ss = online_zscores(x, y,beta_win=cnf.beta_win, zscore_win=cnf.zscore_win,mtd=cnf.mtd, mean_fn=meanvar, beta_fn=lin_reg)
+    long_levels, short_levels = invierte_dinamico(zscore, cnf.sigma_co, cnf.sigma_ve, delta_z=0.5)
+    beta_opt = beta if cnf.linver_betaweight else None
+    capital, retorno = capital_invertido_dinamico(nret_x, nret_y, long_levels, short_levels, zscore,beta=beta_opt, base_size=50, add_size=25)
+    
+    return {'capital': capital,
+            'retorno': retorno,
+            'zscore': zscore,
+            'long_levels': long_levels,
+            'short_levels': short_levels,
+            'beta': beta}
 
 
