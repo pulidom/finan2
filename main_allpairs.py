@@ -35,7 +35,8 @@ class cnf:
     shorten=0
     
 # load data
-day,date,price,company = load_ts(sector=cnf.industry, pathdat=cnf.pathdat)
+day,date,price,company,volume = load_ts(sector=cnf.industry, pathdat=cnf.pathdat)
+
 
 # select training period
 assets_tr=price[:cnf.nmax,:cnf.Npred]
