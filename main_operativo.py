@@ -36,7 +36,11 @@ class cnf:
     shorten=0
     
 # load data
+<<<<<<< HEAD
 day,date,price,company,volume = yahoo_download(['AR','EQT','CNX','NAT','MTR'],datetime.date(2018,1,1),datetime.date(2022,1,1))
+=======
+day,date,price,company,volume = load_ts(sector=cnf.industry, pathdat=cnf.pathdat)
+>>>>>>> c69fa3d (adapto mains para leer volume)
 
 
 # print(day.shape)

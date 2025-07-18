@@ -3,6 +3,7 @@
 import numpy as np
 from scipy.stats import linregress
 from statsmodels.tsa.stattools import adfuller
+
 def select_variables(x,y,tipo='asset'):
     ''' Selecciona la variable y el retorno normalizado correspondiente
         para calculo de ganancia
@@ -55,6 +56,7 @@ class Results:
 def lin_reg(x,y):
     slope, intercept, _, _, _ = linregress(x, y)
     return slope, intercept
+
 def lin_reg_alpha0(x,y):
     slope, intercept, _, _, _ = linregress(x, y)
     return slope, 0
