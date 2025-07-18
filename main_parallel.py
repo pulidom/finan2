@@ -40,7 +40,7 @@ class cnf:
     sigma_ve_l=[0.0,0.15,0.3,0.45]
     
 # load data
-day,date,price,company = load_ts(sector=cnf.industry, pathdat=cnf.pathdat)
+day,date,price,company,volume = load_ts(sector=cnf.industry, pathdat=cnf.pathdat)
 
 # Genero las combinaciones de todos los hyperparametros
 params = [list(comb) for comb in itertools.product(

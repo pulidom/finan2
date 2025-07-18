@@ -35,7 +35,7 @@ class cnf:
     shorten=0
     
 # load data
-day,date,price,company = load_ts(sector=cnf.industry, pathdat=cnf.pathdat)
+day,date,price,company,volume = load_ts(sector=cnf.industry, pathdat=cnf.pathdat)
 
 
 caps = [[] for _ in range(6)]  
