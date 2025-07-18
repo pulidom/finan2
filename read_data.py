@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 def load_ts(assets=None,sector='oil',pathdat='./dat/',
              init_date='2014-01-01',end_date='2024-12-31'):
     ''' Lee los datos ya sea un set especificado de assets o todos '''
-    day,dates,price,company = read_npz(sector=sector,pathdat=pathdat,
+    day,dates,price,company,volume = read_npz(sector=sector,pathdat=pathdat,
                                        init_date=init_date,end_date=end_date)
 
     if assets is not None:
@@ -29,7 +29,7 @@ def load_ts(assets=None,sector='oil',pathdat='./dat/',
     else:
         prices=price
         
-    return day, dates, prices,company
+    return day, dates, prices,company,volume
 
 def read_npz(sector='oil', pathdat='./dat/',
              init_date='2014-01-01',end_date='2024-12-31'):
@@ -37,7 +37,7 @@ def read_npz(sector='oil', pathdat='./dat/',
     dat_fname = check_filename_exists(sector,pathdat,init_date,end_date)
     dat=np.load(dat_fname,allow_pickle=True)    
     dates = np.array([dat['startdate'] + datetime.timedelta(days=int(d)) for d in dat['day']])
-    return dat['day'],dates,dat['price'],dat['company']
+    return dat['day'],dates,dat['price'],dat['company'],dat['volume']
     
 def clean_data(day,price,company,volume): 
     ''' Dado los prices en un periodo de tiempos 
@@ -71,7 +71,7 @@ def clean_data(day,price,company,volume):
 def check_filename_exists(sector,pathdat,init_date,end_date):
     ''' Chequea si npz-file existe sino llama a cvs2npz
        y lo genera '''
-    full_fname=f'{pathdat}/{sector}_{init_date}_{end_date}_day_closeval.npz'
+    full_fname=f'{pathdat}/{sector}_{init_date}_{end_date}_day_vol_closeval.npz'
     if not os.path.isfile(full_fname):
         # Get the sector
         csv2npz(init_date=init_date,end_date=end_date,
