@@ -39,9 +39,7 @@ def read_npz(sector='oil', pathdat='./dat/',
     dates = np.array([dat['startdate'] + datetime.timedelta(days=int(d)) for d in dat['day']])
     return dat['day'],dates,dat['price'],dat['company']
     
-
-    
-def clean_data(day,price,company): 
+def clean_data(day,price,company,volume): 
     ''' Dado los prices en un periodo de tiempos 
     busca las compa~nias que tengan toda la series completa '''
     
@@ -55,17 +53,19 @@ def clean_data(day,price,company):
     
     print('Dias habiles: ',nt_correct)
 
-    prices,company1 =  [], [] #np.zeros(price.shape[0],nt_correct)
+    prices,company1, volumes =  [], [], [] #np.zeros(price.shape[0],nt_correct)
     for i in range(ncompany):
         if nt_correct == np.count_nonzero(~np.isnan(price[i,:])):
             prices.append( price[i,mask_nan] )
+            volumes.append( volume[i,mask_nan] )
             company1.append(company[i])
                             
     price = np.array(prices)
+    volume = np.array(volumes)
     company = np.array(company1)
     print('Cantidad de compa~nias: ',len(company1))
     
-    return dt,price,company
+    return dt,price,company,volume
 
 
 def check_filename_exists(sector,pathdat,init_date,end_date):
@@ -124,7 +124,7 @@ def csv2npz(init_date='2014-01-01',end_date='2024-12-31',
     end_date = pd.to_datetime(end_date)
     date_range = pd.date_range(start=init_date, end=end_date, freq='D')
 
-    julians, opens, company = [], [], []
+    julians, opens, company, volumes = [], [], [], []
     df_all = pd.DataFrame({'date': date_range})
 
     print('Collecting time series')
@@ -140,18 +140,20 @@ def csv2npz(init_date='2014-01-01',end_date='2024-12-31',
 
         julians.append(df_rangets['julian'].values)
         opens.append(df_rangets[var_type].values)
+        volumes.append(df_rangets['volume'].values)
         company.append(row['symbol'])
 
     day = np.array(julians)
     price = np.array(opens)
+    volume = np.array(volumes)
     company = np.array(company)
     print('Cantidad de empresas: ',len(company))
     print(price.shape)
-    dt,price,company = clean_data(day,price,company)
+    dt,price,company,volume = clean_data(day,price,company,volume)
 
 
-    np.savez(folder+f"{industry_type}_{init_date.date()}_{end_date.date()}_day_{var_type}val.npz",
-             day=dt,price=price, company=company, startdate=init_date)
+    np.savez(folder+f"{industry_type}_{init_date.date()}_{end_date.date()}_day_vol_{var_type}val.npz",
+             day=dt,price=price,volume=volume, company=company, startdate=init_date)
 
 if __name__=="__main__":
     csv2npz(init_date='2014-01-01',end_date='2024-12-31')
