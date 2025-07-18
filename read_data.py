@@ -136,7 +136,7 @@ def csv2npz(init_date='2014-01-01',end_date='2024-12-31',
 
     #    df_ts['julian'] = (df_rangets['date']-init_date).dt.days
 
-        df_rangets=pd.merge(df_all, df_ts[['date', 'julian', var_type]], on='date', how='left')
+        df_rangets=pd.merge(df_all, df_ts[['date', 'julian', var_type,'volume']], on='date', how='left')
 
         julians.append(df_rangets['julian'].values)
         opens.append(df_rangets[var_type].values)
