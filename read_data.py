@@ -101,7 +101,7 @@ sector_d = {"airlines":"Passenger Airlines",
             "media": "Media" 
           }
 
-def csv2npz(init_date='2014-01-01',end_date='2024-12-31',
+def csv2npz(init_date='2014-01-01',end_date='2022-12-31',
             var_type='close',
             folder='./dat/',
             industry_type='oil'):

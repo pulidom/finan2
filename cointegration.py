@@ -110,19 +110,25 @@ def half_life_penalty(hl):
       - penalty = 1 if hl < 3 or hl > 21
     Quiero castigar los periodos si no estan entre 7-15 dias de periodo
     """
-    if hl < 3:
-        return 1.0
-    elif 3 <= hl < 7:
+#    if hl < 3:
+#        return 1.0
+#    elif 3 <= hl < 7:
         # penalty decreases from 1 to 0
-        return (7 - hl) / 4
-    elif 7 <= hl <= 15:
-        return 0.0
-    elif 15 < hl <= 21:
+#        return (7 - hl) / 4
+#    elif 7 <= hl <= 15:
+#        return 0.0
+#    elif 15 < hl <= 21:
         # penalty increases from 0 to 1
-        return (hl - 15) / 6
+#        return (hl - 15) / 6
+#    else:
+#        return 1.0
+    if hl < 3 :
+        return np.inf
+    elif hl > 15:
+        return np.inf
     else:
-        return 1.0
-    
+        return hl
+
 def all_pairs_stats(assets,company,tipo):
      assets_l = list(permutations(assets, 2))
      company_l = list(permutations(company, 2))
@@ -147,7 +153,8 @@ def stats(assets_l,tipo):
         pvalue0.append(p)
         H,_,_ = hurste(spread)
         hurst0.append(H)
-        hl= half_life(spread)
+        hl= half_life(spread) # sin penalizacion
+        hl = half_life_penalty(hl) # le agruegue la penalizacion
         half_life0.append(hl)
         score0.append(cointegration_score(p,H,hl))
         result = coint_johansen(np.array([x,y]).T, det_order=0, k_ar_diff=1)

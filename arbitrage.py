@@ -273,4 +273,3 @@ def given_pairs_multiparam(assets_l,company_l,cnf):
         
     return utils.Results(res_l) 
 
-
