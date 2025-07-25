@@ -373,4 +373,5 @@ def inversion_dinamica(x, y, cnf):
             'short_levels': short_levels,
             'beta': beta}
 
+#askhdgasjdfsdj
 
