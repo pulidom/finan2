@@ -63,8 +63,7 @@ for ilast in range(cnf.Ntraining+cnf.Njump,nt,cnf.Njump):
     res.reorder(idx) # ordeno todo los resultados segun el capital
     #cap_pred=utils.returns_from(res.capital,cnf.Ntraining)
 
-
-    metrics = co.all_pairs_stats(assets_tr[:,:ilast-cnf.Njump],company,'asset')
+    metrics = co.all_pairs_stats(assets_tr[:,:-cnf.Njump],company,'asset')
     idx = np.argsort(metrics.pvalue)[:cnf.nsel]
     res2.reorder(idx) # ordeno todo los resultados segun el p-value
     #cap_pred2=utils.returns_from(res2.capital,cnf.Ntraining)
@@ -85,7 +84,9 @@ caps[:,0]=100
 for i in range(6):
     caps[i,1:] = caps[i,0] * np.cumprod(1 + rets[i,1:])
 
-    
+for company_pair in res.company:
+    print(company_pair)
+   
 figfile=cnf.fname+'capital.png'
 fig, ax = plt.subplots(1,1,figsize=(7,5))
 ax.plot(caps[0],label='cap 5')

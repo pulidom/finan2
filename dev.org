@@ -7,6 +7,530 @@
 
 * Codes
 
+
+** Copulas
+
+
+
+
+- Entrenás el copula con una ventana histórica (rolling window o fija).
+
+- Calculás para cada nuevo par de precios (xt,yt)(xt​,yt​) su transformación a ut,vtut​,vt​.
+
+- Evaluás cuán probable o anómala es esa observación bajo el copula.
+
+- Cuando el valor conjunto (ut,vt)(ut​,vt​) tiene baja densidad bajo el copula → señal de entrada.
+
+- Salís cuando vuelve a una región de alta densidad → reversión.
+
+
+#+BEGIN_SRC python :session :results output
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from statsmodels.tsa.stattools import coint
+from scipy.stats import norm, rankdata
+from copulas.multivariate import GaussianMultivariate
+from copulas.univariate import GaussianUnivariate
+
+# 1. Generate two cointegrated price series
+np.random.seed(42)
+n = 1000
+x = np.cumsum(np.random.normal(0, 1, n))
+noise = np.random.normal(0, 0.5, n)
+y = 0.5 * x + noise  # y is linearly dependent on x
+
+# 2. Check for cointegration
+score, pvalue, _ = coint(x, y)
+print(f"Cointegration p-value: {pvalue:.4f}")  # Should be < 0.05
+
+# 3. Estimate marginal distributions and transform to uniforms (empirical CDF)
+def empirical_cdf(data):
+    ranks = rankdata(data)
+    return ranks / (len(data) + 1)
+
+u = empirical_cdf(x)
+v = empirical_cdf(y)
+
+data_uv = pd.DataFrame({'u': u, 'v': v})
+#data_uv = np.column_stack((u, v))
+
+# 4. Fit Gaussian copula
+copula = GaussianMultivariate()
+copula.fit(data_uv)
+
+# 5. Sample from the copula (optional)
+samples = copula.sample(n)#.to_numpy()
+
+# 6. Plot original vs copula-generated
+fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+sns.kdeplot(x=u, y=v, fill=True, ax=axs[0])
+axs[0].set_title('Datos transformados')
+
+sns.kdeplot(x=samples['u'], y=samples['v'], fill=True, ax=axs[1])
+axs[1].set_title('Samples de la densidad de copulas')
+plt.tight_layout()
+plt.show()
+
+#+END_SRC
+
+#+RESULTS:
+: Cointegration p-value: 0.0000
+: /usr/local/lib64/python3.9/site-packages/scipy/stats/_continuous_distns.py:5574: RuntimeWarning: divide by zero encountered in divide
+:   return c**2 / (c**2 - n**2)
+: /usr/local/lib64/python3.9/site-packages/scipy/stats/_distn_infrastructure.py:2789: RuntimeWarning: invalid value encountered in scalar multiply
+:   Lhat = muhat - Shat*mu
+: /usr/local/lib64/python3.9/site-packages/scipy/stats/_continuous_distns.py:5574: RuntimeWarning: divide by zero encountered in divide
+:   return c**2 / (c**2 - n**2)
+: /usr/local/lib64/python3.9/site-packages/scipy/stats/_distn_infrastructure.py:2789: RuntimeWarning: invalid value encountered in scalar multiply
+:   Lhat = muhat - Shat*mu
+
+
+#+BEGIN_SRC python :session :results output
+from scipy.stats import multivariate_normal
+# Suponé que ya tenés x, y, u, v, copula definidos
+def gaussian_copula_logpdf(u, v):
+    """
+    Evalúa el log-pdf de un copula gaussiano bivariado en (u,v)
+    """
+    # Transformar a normales estándar
+    z1 = norm.ppf(u)
+    z2 = norm.ppf(v)
+    z = np.column_stack((z1, z2))
+
+    rho = np.corrcoef(z1, z2)[0, 1]
+    # Matriz de covarianza
+    cov = [[1, rho], [rho, 1]]
+
+    # Evaluar densidad multivariada
+    mvn = multivariate_normal(mean=[0, 0], cov=cov)
+    joint_density = mvn.pdf(z)
+
+    # Evaluar densidades marginales
+    marginal_density = norm.pdf(z1) * norm.pdf(z2)
+
+    # Copula density
+    copula_density = joint_density / marginal_density
+
+    # Log-pdf
+    return np.log(copula_density)
+
+# Definir el umbral para zonas "anómalas"
+lower_thresh = -6  # logpdf muy bajo = oportunidad
+upper_thresh = -2  # zona segura
+
+signals = []
+logpdfs = []
+#copula.covariance_matrix[0, 1] #copula.model.covariance[0, 1]
+
+for i in range(len(u)):
+    u_t, v_t = u[i], v[i]
+    lp = gaussian_copula_logpdf(u[i], v[i])
+    #lp = copula.log_pdf([[u_t, v_t]])[0]
+    logpdfs.append(lp)
+
+    if lp < lower_thresh:
+        signals.append(1)  # entrar
+    elif lp > upper_thresh:
+        signals.append(0)  # salir o no hacer nada
+    else:
+        signals.append(np.nan)  # mantener posición
+
+# Visualizar
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(10, 4))
+plt.plot(logpdfs, label="Log-likelihood")
+plt.axhline(lower_thresh, color='red', linestyle='--', label='Entrada')
+plt.axhline(upper_thresh, color='green', linestyle='--', label='Salida')
+plt.title("Log-verosimilitud del Copula en el tiempo")
+plt.legend()
+plt.show()
+
+#+END_SRC
+
+#+RESULTS:
+
+
+#+BEGIN_SRC python :session :results output
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from statsmodels.tsa.stattools import coint
+from statsmodels.regression.linear_model import OLS
+from scipy.stats import norm, t, kendalltau
+from scipy.optimize import minimize
+from arch import arch_model
+
+# Generate synthetic cointegrated time series
+np.random.seed(42)
+n = 1000
+x = np.cumsum(np.random.normal(0, 1, n))  # Random walk
+y = 0.5 * x + np.random.normal(0, 0.5, n)  # Cointegrated with x
+
+# Plot the series
+plt.figure(figsize=(12, 6))
+plt.plot(x, label='Asset X')
+plt.plot(y, label='Asset Y')
+plt.legend()
+plt.title("Cointegrated Time Series")
+plt.show()
+
+# Step 1: Check for cointegration (Engle-Granger test)
+def check_cointegration(x, y):
+    result = coint(x, y)
+    p_value = result[1]
+    print(f"Cointegration p-value: {p_value:.4f}")
+    return p_value < 0.05  # Significant if p < 0.05
+
+is_cointegrated = check_cointegration(x, y)
+print(f"Are X and Y cointegrated? {is_cointegrated}")
+
+# Step 2: Fit the spread (residuals) using OLS
+ols_model = OLS(y, x).fit()
+spread = y - ols_model.params[0] * x
+spread = (spread - spread.mean()) / spread.std()  # Standardize
+
+# Plot the spread
+plt.figure(figsize=(12, 4))
+plt.plot(spread, label='Standardized Spread')
+plt.axhline(0, color='black', linestyle='--')
+plt.axhline(2, color='red', linestyle='--', alpha=0.5)
+plt.axhline(-2, color='red', linestyle='--', alpha=0.5)
+plt.legend()
+plt.title("Standardized Spread (Mean-Reverting)")
+plt.show()
+
+# Step 3: Model dependence with a Gaussian Copula
+def gaussian_copula_log_likelihood(theta, u, v):
+    rho = np.tanh(theta[0])  # Constrain rho to [-1, 1]
+    cov = np.array([[1.0, rho], [rho, 1.0]])
+    inv_cov = np.linalg.inv(cov)
+    log_det = np.log(np.linalg.det(cov))
+    
+    z_u = norm.ppf(u)
+    z_v = norm.ppf(v)
+    z = np.column_stack([z_u, z_v])  # Shape (n_samples, 2)
+    
+    # Compute z^T * inv_cov * z for each observation
+    quad_form = np.sum(z.dot(inv_cov) * z, axis=1)  # Shape (n_samples,)
+    
+    # Sum over all observations
+    nll = -0.5 * np.sum(quad_form + log_det)
+    return -nll  # Minimize negative log-likelihood
+
+
+#def gaussian_copula_log_likelihood(theta, u, v):
+#    rho = np.tanh(theta)  # Constrain to [-1, 1]
+#    cov = np.array([[1, rho], [rho, 1]])
+#    z = norm.ppf(np.column_stack([u, v]))
+#    log_likelihood = -0.5 * np.sum(np.einsum('ij,ji->i', z, np.linalg.inv(cov)) * z) \
+#                     + np.sum(np.log(norm.pdf(z))) - 0.5 * np.log(np.linalg.det(cov))
+#    return -log_likelihood  # Minimize negative log-likelihood
+
+# Rank-transform to uniform margins (PIT)
+u = np.argsort(np.argsort(x)) / (len(x) + 1)
+v = np.argsort(np.argsort(y)) / (len(y) + 1)
+
+# Fit Gaussian copula
+initial_theta = 0.5
+res = minimize(gaussian_copula_log_likelihood, initial_theta, args=(u, v), method='BFGS')
+rho = np.tanh(res.x[0])  # Estimated correlation
+print(f"Estimated Gaussian Copula Rho: {rho:.4f}")
+
+# Step 4: Generate trading signals using copula probabilities
+def generate_signals(u, v, rho, threshold=0.95):
+    z_u = norm.ppf(u)
+    z_v = norm.ppf(v)
+    cond_mean = rho * z_u
+    cond_std = np.sqrt(1 - rho**2)
+    prob_v_given_u = norm.cdf(z_v, loc=cond_mean, scale=cond_std)
+    
+    # Long when prob < 0.05, short when prob > 0.95
+    signals = np.zeros(len(u))
+    signals[prob_v_given_u < (1 - threshold)] = 1  # Y is too low relative to X
+    signals[prob_v_given_u > threshold] = -1       # Y is too high relative to X
+    return signals
+
+signals = generate_signals(u, v, rho, threshold=0.95)
+
+# Plot signals
+plt.figure(figsize=(12, 6))
+plt.plot(y, label='Asset Y', alpha=0.6)
+plt.plot(x, label='Asset X', alpha=0.6)
+plt.scatter(np.where(signals == 1), y[signals == 1], color='green', label='Long Y')
+plt.scatter(np.where(signals == -1), y[signals == -1], color='red', label='Short Y')
+plt.legend()
+plt.title("Trading Signals Based on Gaussian Copula")
+plt.show()
+#+END_SRC
+
+#+RESULTS:
+: Cointegration p-value: 0.0000
+: Are X and Y cointegrated? True
+ : /usr/local/lib64/python3.9/site-packages/numpy/core/fromnumeric.py:88: RuntimeWarning: invalid value encountered in reduce
+:   return ufunc.reduce(obj, axis, dtype, out, **passkwargs)
+: Estimated Gaussian Copula Rho: 0.4621
+
+
+
+Fitteo del modelo de copulas mas adecuado al par.
+
+
+
+#+BEGIN_SRC python :session :results output
+import numpy as np
+from scipy.stats import norm, t, kendalltau
+from scipy.optimize import minimize
+from statsmodels.distributions.empirical_distribution import ECDF
+import pandas as pd
+
+# ========================
+# 0. Datos de ejemplo (simulados)
+# ========================
+np.random.seed(42)
+n = 1000
+x = np.cumsum(np.random.normal(0, 1, n))  # Asset X
+y = 0.7 * x + np.random.normal(0, 0.5, n)  # Asset Y (cointegrado)
+
+# Transformar a marginales uniformes
+def to_uniform_margins(data):
+    ecdf = ECDF(data)
+    return ecdf(data)
+
+u = to_uniform_margins(x)
+v = to_uniform_margins(y)
+
+# ========================
+# 1. Definición de todas las cópulas
+# ========================
+class GaussianCopula:
+    def __init__(self):
+        self.rho = None
+
+    def fit(self, u, v):
+        tau, _ = kendalltau(u, v)
+        self.rho = np.sin(np.pi * tau / 2)
+        return self
+
+    def log_likelihood(self, u, v):
+        z_u = norm.ppf(u)
+        z_v = norm.ppf(v)
+        cov = np.array([[1.0, self.rho], [self.rho, 1.0]])
+        inv_cov = np.linalg.inv(cov)
+        log_det = np.log(np.linalg.det(cov))
+        z = np.column_stack([z_u, z_v])
+        quad_form = np.sum(z @ inv_cov * z, axis=1)
+        return -0.5 * (quad_form + log_det).sum()
+
+class StudentTCopula:
+    def __init__(self):
+        self.rho = None
+        self.df = None
+
+    def fit(self, u, v):
+        tau, _ = kendalltau(u, v)
+        self.rho = np.sin(np.pi * tau / 2)
+        self.df = 5.0  # Valor inicial (puede optimizarse)
+        return self
+
+    def log_likelihood(self, u, v):
+        z_u = t.ppf(u, df=self.df)
+        z_v = t.ppf(v, df=self.df)
+        cov = np.array([[1.0, self.rho], [self.rho, 1.0]])
+        inv_cov = np.linalg.inv(cov)
+        log_det = np.log(np.linalg.det(cov))
+        z = np.column_stack([z_u, z_v])
+        quad_form = np.sum(z @ inv_cov * z, axis=1)
+        log_const = np.log(1 + quad_form / self.df) * (- (self.df + 2) / 2)
+        return log_const.sum() - 0.5 * log_det
+
+class ClaytonCopula:
+    def __init__(self):
+        self.theta = None
+
+    def fit(self, u, v):
+        # Estimación de theta mediante tau de Kendall
+        tau, _ = kendalltau(u, v)
+        self.theta = 2 * tau / (1 - tau) if tau != 1 else 10  # Evitar división por cero
+        return self
+
+    def log_likelihood(self, u, v):
+        if self.theta <= 0:
+            return -np.inf  # theta debe ser > 0
+        cdf = (u ** (-self.theta) + v ** (-self.theta) - 1) ** (-1 / self.theta)
+        pdf = (1 + self.theta) * (u * v) ** (-self.theta - 1) * cdf ** (self.theta + 2)
+        return np.log(pdf).sum()
+
+class GumbelCopula:
+    def __init__(self):
+        self.theta = None
+
+    def fit(self, u, v):
+        tau, _ = kendalltau(u, v)
+        self.theta = 1 / (1 - tau) if tau != 1 else 10  # Evitar división por cero
+        return self
+
+    def log_likelihood(self, u, v):
+        if self.theta < 1:
+            return -np.inf  # theta debe ser >= 1
+        u_theta = (-np.log(u)) ** self.theta
+        v_theta = (-np.log(v)) ** self.theta
+        cdf = np.exp(-(u_theta + v_theta) ** (1 / self.theta))
+        pdf = cdf * (u_theta + v_theta) ** (-2 + 2 / self.theta) * (np.log(u) * np.log(v)) ** (self.theta - 1)
+        pdf *= (u_theta + v_theta) ** (1 / self.theta) + self.theta - 1
+        return np.log(pdf).sum()
+
+class FrankCopula:
+    def __init__(self):
+        self.theta = None
+
+    def fit(self, u, v):
+        # Estimación inicial de theta (puede optimizarse)
+        self.theta = 5.0
+        return self
+
+    def log_likelihood(self, u, v):
+        if self.theta == 0:
+            return -np.inf
+        term = (np.exp(-self.theta * u) - 1) * (np.exp(-self.theta * v) - 1)
+        cdf = -1 / self.theta * np.log(1 + term / (np.exp(-self.theta) - 1))
+        pdf = self.theta * (np.exp(-self.theta * (u + v)) * (np.exp(-self.theta) - 1)) / \
+              ((np.exp(-self.theta * u) + np.exp(-self.theta * v) - np.exp(-self.theta * (u + v)) - (np.exp(-self.theta) - 1)) ** 2
+        return np.log(pdf).sum()
+
+# ========================
+# 2. Ajustar y comparar todas las cópulas
+# ========================
+copulas = {
+    "Gaussian": GaussianCopula().fit(u, v),
+    "Student-t": StudentTCopula().fit(u, v),
+    "Clayton": ClaytonCopula().fit(u, v),
+    "Gumbel": GumbelCopula().fit(u, v),
+    "Frank": FrankCopula().fit(u, v),
+}
+
+results = []
+for name, copula in copulas.items():
+    log_likelihood = copula.log_likelihood(u, v)
+    n_params = 1  # Para la mayoría (Gaussian, Clayton, Gumbel, Frank)
+    if name == "Student-t":
+        n_params = 2  # rho y df
+    aic = -2 * log_likelihood + 2 * n_params
+    bic = -2 * log_likelihood + n_params * np.log(len(u))
+    results.append({
+        "Copula": name,
+        "Log-Likelihood": log_likelihood,
+        "AIC": aic,
+        "BIC": bic,
+        "Params": f"θ={getattr(copula, 'theta', getattr(copula, 'rho', None)):.3f}" + 
+                 (f", df={copula.df:.1f}" if hasattr(copula, 'df') else "")
+    })
+
+# Resultados en una tabla
+results_df = pd.DataFrame(results)
+print(results_df.sort_values(by="AIC"))
+
+# ========================
+# 3. Seleccionar la mejor cópula
+# ========================
+best_copula_name = results_df.loc[results_df["AIC"].idxmin(), "Copula"]
+print(f"\nMejor cópula: {best_copula_name} (menor AIC)")
+#+END_SRC
+
+#+RESULTS:
+
+    Para activos financieros: Las cópulas Student-t y Gumbel suelen ser útiles por su capacidad de modelar colas pesadas.
+
+    Si hay asimetría: Clayton (cola inferior) o Gumbel (cola superior).
+
+    Dependencia simétrica: Gaussiana o Frank.
+
+  Menor AIC, BIC, mayor log-lik
+
+*** Testeo con un par
+Pares de bebidas para probar las copulas
+
+['CIVI.K' 'DK']
+['UEC' 'TNK']
+['REX' 'WTI']
+['CIVI.K' 'NOG']
+['KGEI.O' 'TRGP.K']
+['WMB' 'CRK']
+
+#+BEGIN_SRC python :session :results output
+import numpy as np
+from read_data import load_ts
+import arbitrage as ar
+import matplotlib.pyplot as plt
+from matplotlib.dates import YearLocator
+import cointegration as co
+#+END_SRC
+
+#+RESULTS:
+
+
+#+BEGIN_SRC python :session :results output
+class cnf:
+    pathdat='dat/'
+    tipo='asset' # 'asset', 'return', 'log_return', 'log'
+    mtd = 'kf'# 'kf' 'exp' 'on' 'off'
+    Ntraining = 1000 # length of the training period
+    beta_win=61   #21
+    zscore_win=31 #11
+    sigma_co=1.5 # thresold to buy
+    sigma_ve=0.1 # thresold to sell
+    nmax=10#-1 # number of companies to generate the pairs (-1 all, 10 for testing)
+    nsel=100# 100 # number of best pairs to select
+    fname=f'tmp/all_pair_{mtd}_' # fig filename
+    #industry='oil'
+    industry='beverages'
+
+#+END_SRC
+
+#+RESULTS:
+
+
+Cargo los datos, calculo primeras diferencias
+
+#+BEGIN_SRC python :session :results output
+assets=['UEC','TNK']
+day,date,price,company,_ = load_ts(assets=assets,sector=cnf.industry, pathdat=cnf.pathdat)
+print(price.shape)
+coca=price[:,0]; pepsi=price[:,1]
+dcoca=price[1:,0]-price[:-1,0]
+dpepsi=price[1:,1]-price[:-1,1]
+#+END_SRC
+
+#+RESULTS:
+: aca (array([], dtype=int64),)
+: shape:  (0, 2768)
+: aca (array([], dtype=int64),)
+: shape:  (0, 2768)
+: (2768, 0, 2)
+
+#+BEGIN_SRC python :session :results output
+figfile=cnf.fname+'asset1.png'
+print(figfile)
+fig, ax = plt.subplots(1,1,figsize=(6,4))
+ax.plot(date,price[:,0],label=assets[0])
+ax.plot(date,price[:,1],label=assets[1])
+ax.legend(frameon=False)
+ax.tick_params(axis='x',rotation=60, zorder=120)
+ax.xaxis.set_major_locator(YearLocator(1,month=1,day=1))
+ax.set(ylabel='Price',xlabel='Year')
+plt.tight_layout()
+plt.show()
+fig.savefig(figfile)
+plt.close()
+#+END_SRC
+
+#+RESULTS:
+: tmp/all_pair_kf_asset1.png
+
+
 ** Plots of time series
 
 Importa librerias

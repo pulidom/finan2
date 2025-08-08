@@ -30,8 +30,8 @@ class cnf:
     nsel=100# 100 # number of best pairs to select
     fname=f'tmp/all_pair_{mtd}_' # fig filename
     linver_betaweight=0
-    industry='oil'
-    #industry='beverages'
+    #industry='oil'
+    industry='beverages'
     shorten=0
     
 # load data
@@ -79,12 +79,12 @@ plt.tight_layout()
 fig.savefig(figfile)
 plt.close()
 
-quit()
 #for cap in res.capital[:,-1]:
 #    print(cap)
 #
-#for company_pair in res.company:
-#    print(company_pair)
+for company_pair in res.company:
+    print(company_pair)
+quit()
 
 metrics = co.stats(res.assets,'log')
 

@@ -20,9 +20,10 @@ def load_ts(assets=None,sector='oil',pathdat='./dat/',
     if assets is not None:
         prices=[]
         for asset in assets:
+            #print(asset,company)
             j=np.where(company == asset)
-            print('aca',j)
-            print('shape: ',price[j].shape)
+            #print('aca',j)
+            #print('shape: ',price.shape)
             prices.append(price[j].squeeze())
             
         prices=np.array(prices).T
