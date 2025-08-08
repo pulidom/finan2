@@ -170,6 +170,8 @@ def capital_invertido(nret_x,nret_y,compras,ccompras,beta=None):
     largo[0] = 100
     corto[0] = 100
     capital[0] = 100
+
+    
     for it  in range(nret_x.shape[0]-1):
         
         if beta is None:
@@ -275,103 +277,136 @@ def given_pairs_multiparam(assets_l,company_l,cnf):
 
 
 
-### @ContardiG
+### DE ACÁ PARA ABAJO ES INVENTO DE GASTON
 
-def invierte_dinamico(zscore, sigma_co=1.5, sigma_ve=0.5, delta_z=0.5):
-    n = len(zscore)
-    long_levels = np.zeros(n, dtype=int)
-    short_levels = np.zeros(n, dtype=int)
+def volume_weight(res_,cnf,volume,assets,company):
     
-    in_long = False
-    in_short = False
-    last_z = 0.0
-    
-    for t in range(n):
-        z = zscore[t]
+    w_volumen = np.zeros(res_.retorno.shape)
+    #print('w_volumen',w_volumen)
+
+    #assets_l = list(permutations(assets, 2))
+    #company_l = list(permutations(company, 2))
+    #print(res_.company)
+    #print(len(res_.company[:,0]))
+    for par in range(len(res_.company[:,0])): 
+        compania0 , compania1 = res_.company[par,0], res_.company[par,1]
+        ubic_compania0 = np.where(company == compania0)[0][0]
+        ubic_compania1 = np.where(company == compania1)[0][0]
+        volumen_compania0 = volume[ubic_compania0, :]
+        volumen_compania1 = volume[ubic_compania1, :]
+
+        volumen_teorico = (np.sum(volumen_compania0[:-cnf.Njump]) + np.sum(volumen_compania1[:-cnf.Njump])) / (2 * volumen_compania0[:-cnf.Njump].shape[0])
         
-        if in_long:
-            if z > sigma_ve:
-                step_increase = int((z - last_z) // delta_z)
-                if step_increase > 0:
-                    long_levels[t] = long_levels[t-1] + step_increase
-                else:
-                    long_levels[t] = long_levels[t-1]
+        for dia in range(1, res_.retorno.shape[1]):  # arranca en 1 por el dia-1
+            volumen_actual = (volumen_compania0[dia-1] + volumen_compania1[dia-1]) / 2
+            if volumen_actual > 10000:
+                ratio = volumen_teorico / volumen_actual
+                if ratio>2:
+                    ratio=2
+                #w_volumen[par, dia] = res_.retorno[par, dia-1] * ratio
+                w_volumen[par, dia] = ratio
             else:
-                in_long = False
-                long_levels[t] = 0
-        else:
-            if z > sigma_co:
-                in_long = True
-                long_levels[t] = 1
+                w_volumen[par, dia] = 1e-18#da problemas si es =0
+    return w_volumen
+
+
+
+def volatility_weight(res_,cnf,volume,assets,company):
+    
+    w_volatilidad = np.zeros(res_.retorno.shape)
+    
+    for par in range(len(res_.company[:,0])):
+        compania0 , compania1 = res_.company[par,0], res_.company[par,1]
+        ubic_compania0 , ubic_compania1 = np.where(company == compania0)[0][0] , np.where(company == compania1)[0][0]
+        volumen_compania0 , volumen_compania1 = volume[ubic_compania0, :] , volume[ubic_compania1, :]
         
-        if in_short:
-            if z < -sigma_ve:
-                step_increase = int((last_z - z) // delta_z)
-                if step_increase > 0:
-                    short_levels[t] = short_levels[t-1] + step_increase
-                else:
-                    short_levels[t] = short_levels[t-1]
+        volatilidad_teorica = np.abs(res_.spread_mean[par,-cnf.Njump])
+        
+        for dia in range(1, res_.retorno.shape[1]):  # arranca en 1 por el dia-1
+            
+            volumen_actual = (volumen_compania0[dia-1] + volumen_compania1[dia-1]) / 2
+
+            volatilidad_actual  = res_.spread[par,dia]
+            zscore = res_.zscore[par,dia]
+            precio = (res_.assets[par,0,dia-1] + res_.assets[par,1,dia-1]) / 2
+            if volumen_actual>10000:
+                ratio=np.abs(zscore*volatilidad_teorica/(precio*volatilidad_actual))
+                if ratio>1:
+                    ratio=1
+                w_volatilidad[par, dia] = ratio
             else:
-                in_short = False
-                short_levels[t] = 0
-        else:
-            if z < -sigma_co:
-                in_short = True
-                short_levels[t] = 1
-        
-        last_z = z
-    
-    return long_levels, short_levels
+                w_volatilidad[par, dia] = 0
+    return w_volatilidad
 
-
-def capital_invertido_dinamico(nret_x, nret_y, long_levels, short_levels,
-                                zscore, beta=None, base_size=50, add_size=25):
+def given_pairs_weighted_(assets_l, company_l, cnf, res_, volume=None,weight_met=volume_weight):
     """
-    Calcula capital invertido dinámicamente:
-      - Tamaño inicial = base_size
-      - Cada incremento de nivel añade add_size
-    Mantiene beta weighting.
+    Corre la estrategia en todos los pares seleccionados y calcula métricas agregadas ponderadas
+    por volumen relativo (estimado internamente), manteniendo el peso constante durante la posición.
+    
+    assets: matriz de precios
+    company: lista de nombres de empresas
+    cnf: configuración
+    res_: resultado de una corrida previa de all_pairs (para identificar pares y retorno)
+    volume: matriz de volumen (empresa x tiempo)
+
+    Retorna: objeto Results con capital_ponderado y retorno_ponderado
     """
-    n = len(nret_x)
-    capital = np.zeros(n)
-    capital[0] = 100
-    retorno = np.zeros(n)
+    #assets_l = list(permutations(assets_l, 2))
+    weights = weight_met(res_,cnf,volume,assets_l,company_l)
+    company_l = list(permutations(company_l, 2))
+    #for i, (x, y) in enumerate(assets_l):
+    #    print(i)
     
-    for t in range(n-1):
-        if beta is None:
-            w_x = w_y = 1
-        else:
-            w_x = 1 / (1 + np.abs(beta[t]))
-            w_y = np.abs(beta[t]) / (1 + np.abs(beta[t]))
-        
-        size_long = base_size + (long_levels[t]-1)*add_size if long_levels[t] > 0 else 0
-        size_short = base_size + (short_levels[t]-1)*add_size if short_levels[t] > 0 else 0
-        
-        
-        if long_levels[t] > 0:
-            retorno[t+1] += (size_long/100) * (w_x * nret_x[t] - w_y * nret_y[t])
-        
-        if short_levels[t] > 0:
-            retorno[t+1] += (size_short/100) * (-w_x * nret_x[t] + w_y * nret_y[t])
-        
-        capital[t+1] = capital[t] * (1 + retorno[t+1])
+    assets_l = res_.assets
+
+    n_pairs = len('assets_l')
+    n_days = weights.shape[1]
+    res_l = []
+    #print('weit',weights.shape)
     
-    return capital, retorno
-
-
-def inversion_dinamica(x, y, cnf):
-    x, y, nret_x, nret_y = utils.select_variables(x, y, tipo=cnf.tipo)
-    zscore, beta, spread, sm, ss = online_zscores(x, y,beta_win=cnf.beta_win, zscore_win=cnf.zscore_win,mtd=cnf.mtd, mean_fn=meanvar, beta_fn=lin_reg)
-    long_levels, short_levels = invierte_dinamico(zscore, cnf.sigma_co, cnf.sigma_ve, delta_z=0.5)
-    beta_opt = beta if cnf.linver_betaweight else None
-    capital, retorno = capital_invertido_dinamico(nret_x, nret_y, long_levels, short_levels, zscore,beta=beta_opt, base_size=50, add_size=25)
+    pesos_congelados = np.zeros_like(weights)
     
-    return {'capital': capital,
-            'retorno': retorno,
-            'zscore': zscore,
-            'long_levels': long_levels,
-            'short_levels': short_levels,
-            'beta': beta}
+    for i, (x, y) in enumerate(assets_l):
+        res_d = inversion(x, y, cnf, shorten=0)
+        res_d['company'] = company_l[i]
+        res_d['assets'] = assets_l[i]
+        res_l.append(res_d)
 
-#askhdgasjdfsdj
+        # Congelar pesos durante posición abierta
+        peso_actual = 0
+        pos = False
+        for t in range(n_days):
+            compra = res_d['compras'][t]
+            ccompra = res_d['ccompras'][t]
+            
+            if compra or ccompra:
+                if not pos:
+                    peso_actual = weights[i, t]
+                    pos=True
+            else:
+                pos=False
+                peso_actual = peso_actual
+            pesos_congelados[i, t] = peso_actual
 
+    # Normalizar pesos por día
+    #print(pesos_congelados[2])
+    suma_pesos = pesos_congelados.sum(axis=0) + 1e-18
+    #print(suma_pesos.shape)
+    pesos_normalizados = pesos_congelados / suma_pesos[:]
+    #print(np.max(pesos_normalizados))
+    #print(np.min(pesos_normalizados))
+    # Capital y retorno ponderados
+    capital_matrix = np.array([res['capital'] for res in res_l])
+    retorno_matrix = np.array([res['retorno'] for res in res_l])
+    #capital_ponderado = (capital_matrix * pesos_normalizados).sum(axis=0)
+    capital_ponderado = capital_matrix
+    retorno_ponderado = (retorno_matrix * pesos_normalizados).sum(axis=0)
+
+    # Empaquetar resultados
+    resultado_final = utils.Results(res_l)
+    resultado_final.capital_ponderado = capital_ponderado
+    resultado_final.retorno_ponderado = retorno_ponderado
+    resultado_final.pesos_usados = pesos_congelados
+    resultado_final.pesos_normalizados = pesos_normalizados
+
+    return resultado_final

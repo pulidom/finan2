@@ -31,11 +31,11 @@ class cnf:
     fname=f'tmp/all_pair_{mtd}_' # fig filename
     linver_betaweight=0
     #industry='oil'
-    industry='oil'
+    industry='beverages'
     shorten=0
     
 # load data
-day,date,price,company = load_ts(sector=cnf.industry, pathdat=cnf.pathdat)
+day,date,price,company,volume = load_ts(sector=cnf.industry, pathdat=cnf.pathdat)
 
 
 caps = [[] for _ in range(6)]  
