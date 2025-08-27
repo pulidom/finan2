@@ -15,7 +15,7 @@ def load_ts(assets=None,sector='oil',pathdat='./dat/',
              init_date='2014-01-01',end_date='2024-12-31'):
     ''' Lee los datos ya sea un set especificado de assets o todos '''
     day,dates,price,company,volume = read_npz(sector=sector,pathdat=pathdat,
-                                       init_date=init_date,end_date=end_date)
+                                              init_date=init_date,end_date=end_date)
 
     if assets is not None:
         prices=[]
@@ -103,7 +103,6 @@ sector_d = {"airlines":"Passenger Airlines",
             "automobiles": "Automobiles",
             "hardware": "Technology Hardware, Storage & Peripherals",
             "broadline": "Broadline Retail"
-
           }
 
 def csv2npz(init_date='2014-01-01',end_date='2024-12-31',
@@ -163,8 +162,6 @@ def csv2npz(init_date='2014-01-01',end_date='2024-12-31',
 if __name__=="__main__":
     csv2npz(init_date='2014-01-01',end_date='2024-12-31')
     
-### acá metí mano
-
 def load_all_ts(sectors=None, pathdat='./dat/',
                 init_date='2014-01-01', end_date='2024-12-31'):
     """

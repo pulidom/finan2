@@ -185,19 +185,3 @@ def cointegration_score(adf_pval, hurst, half_life,johansen):
     #score = list[0] * pval_score + list[1] * hurst_score + list[2] * hl_score + list[3] *johansen
     score = 0 * 10 * pval_score + 0 * hurst_score + 0 * hl_score + 0 * johansen + hl
     return score
-
-### @ContardiG
-def compute_weights(metric_values):
-    ''' Normaliza los scores para obtener pesos que sumen 1 '''
-    values = np.asarray(metric_values, dtype=np.float64)
-
-    # Asegura que no haya negativos ni NaNs
-    values = np.nan_to_num(values, nan=0.0, posinf=0.0, neginf=0.0)
-    values = np.clip(values, a_min=0, a_max=None)  # Reemplaza negativos con 0
-
-    total = np.sum(values)
-    if total == 0:
-        # Si todos los valores son cero, asigna pesos iguales
-        return np.ones_like(values) / len(values)
-
-    return values / total

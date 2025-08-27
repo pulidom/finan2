@@ -94,7 +94,8 @@ def online_zscores(x, y,
             zscore[it] = (spread[it] - spread_mean[it]) / spread_std[it]
 
         zscore[:beta_win]=np.nan
-        
+    #print('z',zscore,'b',beta,'s',spread,'sm',spread_mean,'ss',spread_std)
+    #quit()
     return zscore,beta,spread,spread_mean,spread_std
 
 def kalman_cointegration(x, y, sigma_eps=1.0, sigma_eta_alpha=0.01, sigma_eta_beta=0.01):
@@ -155,6 +156,7 @@ def invierte(zscore,sigma_co=1.5,sigma_ve=0.5):
             if zscore[it] < - sigma_co:
                 cband=1 # compro
                 ccompras[it]=True
+    #print('compras',compras,'ccompras',ccompras)
     return compras,ccompras
 
 
@@ -199,6 +201,7 @@ def capital_invertido(nret_x,nret_y,compras,ccompras,beta=None):
         if compras[it] == 0 and ccompras[it] == 0:
             capital[it+1] = capital[it]
         #capital=largo.sum(1)+corto.sum(1)
+    #print('largo',largo,'\ncorto', corto)
     return largo, corto,capital,retorno
 
 def inversion(x,y,cnf,shorten=0):
@@ -289,24 +292,27 @@ def volume_weight(res_,cnf,volume,assets,company):
     #print(res_.company)
     #print(len(res_.company[:,0]))
     for par in range(len(res_.company[:,0])): 
-        compania0 , compania1 = res_.company[par,0], res_.company[par,1]
-        ubic_compania0 = np.where(company == compania0)[0][0]
-        ubic_compania1 = np.where(company == compania1)[0][0]
-        volumen_compania0 = volume[ubic_compania0, :]
-        volumen_compania1 = volume[ubic_compania1, :]
-
-        volumen_teorico = (np.sum(volumen_compania0[:-cnf.Njump]) + np.sum(volumen_compania1[:-cnf.Njump])) / (2 * volumen_compania0[:-cnf.Njump].shape[0])
+        c0 , c1 = res_.company[par,0], res_.company[par,1]
+        ubic_0 , ubic_1 = np.where(company == c0)[0][0] , np.where(company == c1)[0][0]
+        p0     , p1     = res_.assets[par,0,:] , res_.assets[par,1,:]
+        v0     , v1     = volume[ubic_0, :]*p0 , volume[ubic_1, :]*p1
+        volumen_teorico = min(np.mean(v0[:-cnf.Njump]),np.mean(v1[:-cnf.Njump])) 
         
         for dia in range(1, res_.retorno.shape[1]):  # arranca en 1 por el dia-1
-            volumen_actual = (volumen_compania0[dia-1] + volumen_compania1[dia-1]) / 2
-            if volumen_actual > 10000:
+            # volumen * precio
+            # cap de 10M usd
+            v0i,v1i = v0[dia-1],  v1[dia-1]
+            volumen_actual = min(v0i,v1i)
+            
+            if volumen_actual>10_000_000:
                 ratio = volumen_teorico / volumen_actual
                 if ratio>2:
                     ratio=2
                 #w_volumen[par, dia] = res_.retorno[par, dia-1] * ratio
                 w_volumen[par, dia] = ratio
             else:
-                w_volumen[par, dia] = 1e-18#da problemas si es =0
+                #w_volumen[par, dia] = 1e-18#da problemas si es =0
+                w_volumen[par, dia] = 0
     return w_volumen
 
 
@@ -316,29 +322,34 @@ def volatility_weight(res_,cnf,volume,assets,company):
     w_volatilidad = np.zeros(res_.retorno.shape)
     
     for par in range(len(res_.company[:,0])):
-        compania0 , compania1 = res_.company[par,0], res_.company[par,1]
-        ubic_compania0 , ubic_compania1 = np.where(company == compania0)[0][0] , np.where(company == compania1)[0][0]
-        volumen_compania0 , volumen_compania1 = volume[ubic_compania0, :] , volume[ubic_compania1, :]
+        c0 , c1 = res_.company[par,0], res_.company[par,1]
+        ubic_0 , ubic_1 = np.where(company == c0)[0][0] , np.where(company == c1)[0][0]
+        p0     , p1     = res_.assets[par,0,:] , res_.assets[par,1,:]
+        v0     , v1     = volume[ubic_0, :]*p0 , volume[ubic_1, :]*p1
         
         volatilidad_teorica = np.abs(res_.spread_mean[par,-cnf.Njump])
         
         for dia in range(1, res_.retorno.shape[1]):  # arranca en 1 por el dia-1
-            
-            volumen_actual = (volumen_compania0[dia-1] + volumen_compania1[dia-1]) / 2
 
             volatilidad_actual  = res_.spread[par,dia]
             zscore = res_.zscore[par,dia]
-            precio = (res_.assets[par,0,dia-1] + res_.assets[par,1,dia-1]) / 2
-            if volumen_actual>10000:
-                ratio=np.abs(zscore*volatilidad_teorica/(precio*volatilidad_actual))
+            p0i,p1i= p0[dia-1], p1[dia-1]
+            v0i,v1i = v0[dia-1],  v1[dia-1]
+            volumen_actual = min(v0i,v1i)
+            
+            price = min(p0i,p1i)
+            
+            if volumen_actual>10_000_000:
+                ratio=np.abs(zscore*volatilidad_teorica/(price*volatilidad_actual))
                 if ratio>1:
                     ratio=1
                 w_volatilidad[par, dia] = ratio
             else:
                 w_volatilidad[par, dia] = 0
+    
     return w_volatilidad
 
-def given_pairs_weighted_(assets_l, company_l, cnf, res_, volume=None,weight_met=volume_weight):
+def given_pairs_weighted(assets_l, company_l, cnf, res_, volume=None,weight_met=volume_weight):
     """
     Corre la estrategia en todos los pares seleccionados y calcula métricas agregadas ponderadas
     por volumen relativo (estimado internamente), manteniendo el peso constante durante la posición.
@@ -353,6 +364,7 @@ def given_pairs_weighted_(assets_l, company_l, cnf, res_, volume=None,weight_met
     """
     #assets_l = list(permutations(assets_l, 2))
     weights = weight_met(res_,cnf,volume,assets_l,company_l)
+    #print('www',weights.shape)
     company_l = list(permutations(company_l, 2))
     #for i, (x, y) in enumerate(assets_l):
     #    print(i)
@@ -409,4 +421,28 @@ def given_pairs_weighted_(assets_l, company_l, cnf, res_, volume=None,weight_met
     resultado_final.pesos_usados = pesos_congelados
     resultado_final.pesos_normalizados = pesos_normalizados
 
+
     return resultado_final
+
+def ordenar_pares(res,volume,metrica,cnf,inverso_flag=False,capear_por_volumen=False):
+
+    if capear_por_volumen:
+        for par in range(len(res.company[:,0])): 
+
+            c0 , c1 = res.company[par,0], res.company[par,1]
+            #print(np.where(company == c0)[0][0])
+            ubic_0 , ubic_1 = np.where(res.company == c0)[0][0] , np.where(res.company == c1)[0][0]
+            p0     , p1     = res.assets[par,0,:] , res.assets[par,1,:]
+            v0     , v1     = volume[ubic_0, :] * p0 , volume[ubic_1, :] * p1
+            volumen_teorico = min(np.mean(v0[:-cnf.Njump]),np.mean(v1[:-cnf.Njump])) 
+            
+            if volumen_teorico > 10_000_000:
+                if inverso_flag:
+                    metrica[par]+=-9999
+                else:
+                    metrica[par]+=9999
+
+    idx = np.argsort(metrica)[:cnf.nsel]
+    res.reorder(idx)
+
+    return 
