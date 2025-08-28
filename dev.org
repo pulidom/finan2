@@ -530,7 +530,6 @@ plt.close()
 #+RESULTS:
 : tmp/all_pair_kf_asset1.png
 
-
 ** Plots of time series
 
 Importa librerias

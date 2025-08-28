@@ -156,5 +156,43 @@ def csv2npz(init_date='2014-01-01',end_date='2024-12-31',
     np.savez(folder+f"{industry_type}_{init_date.date()}_{end_date.date()}_day_vol_{var_type}val.npz",
              day=dt,price=price,volume=volume, company=company, startdate=init_date)
 
+class SyntheticAssets:
+    """Generate synthetic mean-reverting assets using Ornstein-Uhlenbeck process"""
+    
+    def __init__(self, n_periods=1000, dt=1/252):
+        self.n_periods = n_periods
+        self.dt = dt
+        
+    def ornstein_uhlenbeck(self, theta, mu, sigma, x0):
+        """Generate Ornstein-Uhlenbeck process"""
+        x = np.zeros(self.n_periods)
+        x[0] = x0
+        
+        for i in range(1, self.n_periods):
+            dW = np.random.normal(0, np.sqrt(self.dt))
+            dx = theta * (mu - x[i-1]) * self.dt + sigma * dW
+            x[i] = x[i-1] + dx
+            
+        return x
+    
+    def generate_assets(self):
+        """Generate two correlated mean-reverting assets"""
+        # Asset 1 parameters
+        theta1, mu1, sigma1, x0_1 = 0.5, 100, 10, 95
+        
+        # Asset 2 parameters  
+        theta2, mu2, sigma2, x0_2 = 0.3, 50, 8, 48
+        
+        # Generate independent processes
+        asset1 = self.ornstein_uhlenbeck(theta1, mu1, sigma1, x0_1)
+        asset2_independent = self.ornstein_uhlenbeck(theta2, mu2, sigma2, x0_2)
+        
+        # Add correlation by mixing with asset1
+        correlation = 0.7
+        noise = np.random.normal(0, 5, self.n_periods)
+        asset2 = correlation * asset1 * 0.4 + (1-correlation) * asset2_independent + noise
+        
+        return asset1, asset2
+
 if __name__=="__main__":
     csv2npz(init_date='2014-01-01',end_date='2024-12-31')
