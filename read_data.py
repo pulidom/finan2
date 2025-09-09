@@ -11,26 +11,37 @@ import datetime
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 
-def load_ts(assets=None,sector='oil',pathdat='./dat/',
+def load_ts(assets=None,sectors=['oil'],pathdat='./dat/',
              init_date='2014-01-01',end_date='2024-12-31'):
     ''' Lee los datos ya sea un set especificado de assets o todos '''
-    day,dates,price,company,volume = read_npz(sector=sector,pathdat=pathdat,
-                                       init_date=init_date,end_date=end_date)
+    if sectors is None:
+        sectors = list(sector_d.keys())
 
-    if assets is not None:
-        prices=[]
-        for asset in assets:
-            #print(asset,company)
-            j=np.where(company == asset)
-            #print('aca',j)
-            #print('shape: ',price.shape)
-            prices.append(price[j].squeeze())
+    prices, companies = [], []
+    for sector in sectors:
+        day,dates,price,company,volume = read_npz(sector=sector,pathdat=pathdat,
+                                                  init_date=init_date,end_date=end_date)
+
+        if assets is not None:
+            prices=[]
+            for asset in assets:
+                #print(asset,company)
+                j=np.where(company == asset)
+                #print('aca',j)
+                #print('shape: ',price.shape)
+                prices.append(price[j].squeeze())
+                companies.append(company)
+
+            prices=np.array(prices).T
+        else:
+            prices.append(price)
+            companies.append(company)
             
-        prices=np.array(prices).T
-    else:
-        prices=price
-        
-    return day, dates, prices,company,volume
+    prices=np.array(prices)
+    companies = np.array(company)
+    
+    return day, dates, prices,companies,volume
+
 
 def read_npz(sector='oil', pathdat='./dat/',
              init_date='2014-01-01',end_date='2024-12-31'):

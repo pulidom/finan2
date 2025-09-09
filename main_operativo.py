@@ -123,7 +123,7 @@ plt.tight_layout()
 fig.savefig(figfile)
 plt.close()
 
-
+a
 gra.plot_zscore(0,res,cnf.fname)
 gra.plot_zscore(1,res,cnf.fname)
 gra.plot_capital_single(0,res,cnf.fname)
