@@ -186,10 +186,11 @@ class augLV(M):
     def _mdl(self,x):
         " LV model equations "
 
-        dx0 = x[2] * x[0] - self.beta * x[0] * x[1]
-        dx1 = - x[3] * x[1] + self.delta * x[0] * x[1]
+        dx=np.zeros(x.shape)
+        dx[0] = x[2] * x[0] - self.beta * x[0] * x[1]
+        dx[1] = - x[3] * x[1] + self.delta * x[0] * x[1]
         
-        return self.dt * np.array([dx0,dx1,0,0]) # persistence for the parameters    
+        return self.dt * dx # persistence for the parameters    
 
     
 #------------------------------------- ---------------------

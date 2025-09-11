@@ -8,8 +8,8 @@
 import numpy as np
 from numpy.linalg import pinv
 import numpy.random as rnd
-import utils
-from utils import PaWa_svd as PaWa #using svd
+import utils_enkf
+from utils_enkf import PaWa_svd as PaWa #using svd
 
 class FILTER:
     def __init__(self,Fmdl,Obs,
@@ -56,6 +56,7 @@ class FILTER:
             # save time dependent variables
             Xa_t[icy]=Xa
             Xf_t[icy]=Xf
+            
         return Xa_t,Xf_t
 
     __call__=asscy
