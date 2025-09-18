@@ -8,6 +8,19 @@
 * Codes
 
 
+** con redes deepar
+https://pytorch-forecasting.readthedocs.io/en/stable/tutorials/deepar.html
+https://github.com/husnejahan/DeepAR-pytorch
+https://medium.com/@corymaklin/deepar-forecasting-algorithm-6555efa63444
+
+https://github.com/jsyoon0823/TimeGAN
+https://github.com/zzw-zwzhang/TimeGAN-pytorch
+** Tabak
+
+Se puede pensar la metodologia como un expectation maximization? en algun sentido estamos maximizando con respecto a los parametros y despues estamos evaluando las y's?
+
+Puedo ir viendo como se mueven las particulas y ademas como se va reduciendo la parte de la cost function que tiene que ver con la independencia?
+
 ** Copulas
 
 

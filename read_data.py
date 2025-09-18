@@ -39,7 +39,8 @@ def load_ts(assets=None,sectors=['oil'],pathdat='./dat/',
             
     prices=np.array(prices)
     companies = np.array(company)
-    
+
+    prices= prices.squeeze()
     return day, dates, prices,companies,volume
 
 

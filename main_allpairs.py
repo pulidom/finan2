@@ -26,21 +26,19 @@ class cnf:
     zscore_win=41 #11
     sigma_co=1.5 # thresold to buy
     sigma_ve=0.1 # thresold to sell
-    nmax=-1 # number of companies to generate the pairs (-1 all, 10 for testing)
+    nmax=None # number of companies to generate the pairs (-1 all, 10 for testing)
     nsel=100# 100 # number of best pairs to select
     fname=f'tmp/all_pair_{mtd}_' # fig filename
     linver_betaweight=0
     #industry='oil'
-    industry='beverages'
+    industry=['beverages']
     shorten=0
     
 # load data
-day,date,price,company,volume = load_ts(sector=cnf.industry, pathdat=cnf.pathdat)
-
+day,date,price,company,volume = load_ts(sectors=cnf.industry, pathdat=cnf.pathdat)
 
 # select training period
-assets_tr=price[:cnf.nmax,:cnf.Npred]
-
+assets_tr=price[:,:cnf.nmax,:cnf.Npred].squeeze()
 t0 = time()
 res = ar.all_pairs(assets_tr,company[:cnf.nmax],cnf)
 print('Tiempo:  ',time()-t0)

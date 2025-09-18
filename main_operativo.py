@@ -26,19 +26,20 @@ class cnf:
     zscore_win=41 #11
     sigma_co=1.5 # thresold to buy
     sigma_ve=0.1 # thresold to sell
-    nmax=-1 # number of companies to generate the pairs (-1 all, 10 for testing)
+    nmax=None # number of companies to generate the pairs (-1 all, 10 for testing)
     nsel=100# 100 # number of best pairs to select
     fname=f'tmp/all_pair_{mtd}_' # fig filename
     linver_betaweight=0
     #industry='oil'
-    industry='beverages'
+    industry=['beverages']
     shorten=0
     
 # load data
-day,date,price,company,volume = load_ts(sector=cnf.industry, pathdat=cnf.pathdat)
+day,date,price,company,volume = load_ts(sectors=cnf.industry, pathdat=cnf.pathdat)
 
 
 caps = [[] for _ in range(6)]  
+
 
 nt=price.shape[1]
 iini=0
@@ -48,7 +49,6 @@ for ilast in range(cnf.Ntraining+cnf.Njump,nt,cnf.Njump):
     
     assets_tr=price[:cnf.nmax,iini:ilast]
 
-    print(assets_tr.shape)
     iini+=cnf.Njump
     
  
@@ -63,7 +63,7 @@ for ilast in range(cnf.Ntraining+cnf.Njump,nt,cnf.Njump):
     res.reorder(idx) # ordeno todo los resultados segun el capital
     #cap_pred=utils.returns_from(res.capital,cnf.Ntraining)
 
-    metrics = co.all_pairs_stats(assets_tr[:,:-cnf.Njump],company,'asset')
+    metrics = co.all_pairs_stats(assets_tr[:,:ilast-cnf.Njump],company,'asset')
     idx = np.argsort(metrics.pvalue)[:cnf.nsel]
     res2.reorder(idx) # ordeno todo los resultados segun el p-value
     #cap_pred2=utils.returns_from(res2.capital,cnf.Ntraining)
@@ -77,9 +77,7 @@ for ilast in range(cnf.Ntraining+cnf.Njump,nt,cnf.Njump):
     caps[5].append(res2.retorno[:20,cnf.Ntraining:].mean(0))
     
 rets = np.array([np.concatenate(cap) for cap in caps])
-print(rets.shape)
 caps=np.zeros_like(rets)
-print(caps.shape)
 caps[:,0]=100
 for i in range(6):
     caps[i,1:] = caps[i,0] * np.cumprod(1 + rets[i,1:])

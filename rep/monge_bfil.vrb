@@ -1,0 +1,14 @@
+\frametitle{Optimizacion con flujos de part\'iculas}
+Dados $a$ y $b$ terminamos en un problema de minimizacion dado por
+
+\[\min_{\{y_i\}}  \sum_{i=1}^{n} c(x_i, y_i) + \lambda  \, \|A(y)\| \]
+
+Problema de optimizacion con mapas que mueven {\bf todas} las particulas
+\[y_i^{n+1} = y_i^n - \eta^n \left[ \frac{1}{n} \nabla_y c(x_i, y)\big|_{y_i^n} + \lambda \, a^{\prime} \, \nabla_y A\big|_{y_i^n} b \right] \]
+
+esto lo puedo ver como un descenso de gradientes.
+
+
+
+\[\nabla_y A^{hl}\Big|_{y_i^n} = Q_z^h(z_i) \sum_j \nabla G^j(y)\big|_{y_i} B_{jl}^y\]
+

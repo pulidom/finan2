@@ -1,0 +1,1881 @@
+#+TITLE: Data assimilation in financial time series data
+#+STARTUP: hidestars
+#+STARTUP: overview
+#+LATEX_CLASS: myarticle
+#+OPTIONS: toc:nil
+#+STARTUP: inlineimages
+
+* Tareas
+
+
+** TODO <2025-06-06 Fri> operacional
+Quizas convenga hacer la  prediccion con todo los pares (no solo con los 100 que mejor dan).
+De esa manera se puede ver que sucederia si se aplican distintos criterios de seleccion en el periodo de entrenamiento (Sharpe ratio p-value etc).
+
+Aunque esto tambien lo puedo hacer en un segundo codigo que tome el local y luego elija la cantidad de pares que quiero y haga el testing a partir de estos pares en cada periodo.
+
+Hay otro problema para el periodo de testing necesito ya tener los modelos funcionando con el periodo de training y no tener que recomenzar todo. Quizas entonces lo que se puede hacer es correr por 3 anos y se usan los dos primeros para seleccion de pares y el ultimo para testing. (o 4an~os 3+1 etc)
+
+Quizas lo optimo seria tener compras, ccompras y capital? porque requiero volver a calcular el capital o puedo reutilizar el calculo del capital?
+Supongamos que comienzo el dia 252 puedo considerar el capital inicial y "renormalizarlo" a 100 y listo. Quizas lo esencial seria el z-score, el beta (y contando con los sigmas) se pueden regenerar las compras y ventas. De todas maneras voy a guardar tambien compras, ccompras, capital, z-score, beta
+
+En pair_local_params quizas se deba seleccionar los pares por otros criterios:
+#+BEGIN_SRC python :session :results output
+    idx_params = np.argmax(capital_pairs, axis=0) # me quedo con los mejores parametros para cada par
+#+END_SRC
+en lugar de esto seleccionar por la sharpe ratio en el periodo
+** TODO <2025-06-07 Sat> Armado de un portfolio
+- Analisis de las salidas de operacional
+- Como se correlacionan los pares seleccionados entre el periodo de training y el de testing?
+- Capital resultante si pondero la performance  (entre pares y entre assets de pares) en los periodos proximo pasados. Cada 6 meses. Quizas con ventana movil.
+- Se podria pensar que de acuerdo al rendimiento que vengan teniendo se pondere la inversion (incluso dentro de un par, que se apueste mas a corto o largo a una o la otra de acuerdo a las inversiones del pasado.
+- Otra idea seria ir trabajando con un pool de 50 pares, con inversiones ficticias y luego ir seleccionando 10 pares para inversiones reales de acuerdo a su rendimiento en las inversiones ficticias. (esto seria a tiempo real/testing no en el training period de seleccion de pares)
+
+** TODO <2025-06-04 Wed> Metricas
+Se podria contar las veces que la posicion conllevo a ganancias y a perdidas y en forma relativa si las ganancias o perdidas fueron producidas por un gran salto o multiples saltos positovos/negativos
+
+** TODO <2025-06-02 Mon> Analisis de salidas de hypero
+- Desarrollar script para volver a correr los 10 (o 20) mejores pares con parametros optimos y plotear todo lo que quiera (idem all_pairs pero leyendo los pares y parametros).  
+- Ploteo del capital total para los 10 mejores pares.
+- Mejor y peor par del pull analisis all_pairs
+- Analisis de los parametros optimos (se van a los extremos como cambian entre los distintos pares). Quizas tomando entre 20-40 pares optimos
+- Metricas de estacionaridad
+- Sharpe ratio etc (robustez)
+- Capital si pondero la performance (entre pares y entre assets de pares) en los periodos proximo pasados. Cada 6 meses?
+- Comparacion: kf, on, exp.
+- Documentar en forma prolija los graficos y resultados 
+** DONE <2025-05-31 Sat> Estrategia general
+Quizas pueda trabajar con escalas de 2 a~nos (2x252) para buscar los parametros optimos y pares optimos y luego trabajo un a~no con esos parametros optims y asi sucesivamente. Tomo los dos ultimos a~nos reoptimo y aplico para el a~no siguiente. 
+
+Tomo los 10 mejores pares del archivo guardado y opero con los parametros optimos por 3 a~nos. Me gustaria chequear con que tiempos la estrategia de los pares existentes seria valida.
+
+
+** DONE <2025-05-29 Thu> Minors
+1. Generar nuevos datos con fecha inicial.
+2. Nuevas simulaciones para corrida inicial
+** DONE <2025-05-16 Fri> Minors code
+- Sacar el mean_fn (solo hay una opcion).
+- El archivo npz deberia contener la fecha inicial.
+** DONE <2025-05-13 Tue> Hiper-optimizacion
+Definir todos los parametros que irian en la hyperoptimizacion
+
+beta_win=[21,31...61,121]
+zscore_win=[11,21,31,...,61]
+sigma_co
+sigma_ve
+
+mean_fn
+beta_fn???
+
+La hyperoptimizacion puede ser doble:
+
+Con todos los pares y un set de hiperparametros global.
+
+Con esto selecciono los 30-50 pares con los que voy a operar
+y luego hyperoptimizo estos 30-50 pares y me quedo con los
+10 mejores.
+
+** DONE <2025-05-08 Thu> Z-score
+- Desarrollo algoritmo secuencial
+- Inversion corto y largo.
+- Rol de alpha
+- Desarrollo hiperoptimizador. Definicion de periodo de training y periodo de testing
+- Aplicacion multiples pares.
+- En lugar de promediacion movil desarrollar un ajuste polinomico movil
+- Para los casos en que se usen returnos (diferencias en la serie de tiempos) se debe calcular el retorno del i+1 no del i (no se debe tener en cuenta el retorno del dia de la compra sino el siguiente)
+*** <2025-05-10 Sat>
+- Posibilidad de usar: variable, retorno, diff(log(x))
+- Promediacion del spread: movil, exponencial, polinomica, kalman
+- beta con regresion o con filtro de kalman
+- uso de todos los pares para tener medidas mas globales.
+  
+** DONE <2025-05-04 Sun> Calculo de la ganancia que dia compro y que dia vendo?
+Como tengo que hacer con el return, que dia estoy comprando? no sera que hay que correr en uno la serie?
+** DONE <2025-05-04 Sun> Busqueda de pares
+Puedo elegir un periodo de training donde elija los pares de todos los posibles que tengan la mayor ganancia
+
+** DONE <2025-05-04 Sun> Ensemble de ensemble de modelos
+Puedo ir mirando a tiempo real la performance de cada modelo y en base a eso
+irle dando peso en las decisiones.
+** DONE <2025-04-25 Fri> Como evitar el one-time lag
+Lo que esta sucediendo con el KF es que se va adaptando tarde y no esta haciendo el debido filtrado/smoothing de la serie. 
+
+- Quizas lo que se puede hacer es considerar varios tiempos a la vez para estimar los coeficientes y el estado del sistema (2-5 dias).
+  veo dos posibilidades,
+  -  un 4d-enkf (Solo se hace una correccion cada n-dias)
+  -  directamente hacer regresion con los ultimos n-dias para los coef y luego seguir uno a uno.
+    
+- Hacer modelos mas complejos que vayan mas alla del lineal.
+-
+** DONE <2025-04-27 Sun> Evaluando las estrategias
+Graficacion de los valores de las variables y si se esta comprando a favor o en contra
+Quizas lo mas efectivo es ver el retorno? (positivo ganamos si compramos a largo, negativo ganamos si compramos a corto).
+** DONE <2025-04-19 Sat> Experimento con una sola variable diferencia de activos
+Se puede probar con y sin variables ocultas.
+Se puede usar el valor de la variable misma de informacion extra?
+Comparacion con la estrategia de pair trading.
+
+Aqui deberia elegir exactamente los mismos pares que esta trabajando Santiago.
+
+** DONE <2025-04-19 Sat> Desarrollo modelo sin la diagonal
+Para que funcione tiene que tener estado aumentado con los parametros de afuera de la
+diagonal solamente.
+** DONE <2025-04-19 Sat> Sistema de hiperoptimizacion
+Unos 16 experimentos (multiprocess) en los cuales se mida la ganancia neta del esquema.
+Definicion de cuales serian los hiperparametros que se deben ajustar.
+
+** DONE [2025-03-22 Sat] Implementacion de cuan no gaussianas son las perturbaciones
+** DONE [2025-03-17 Mon] Implementacion de EM online
+** DONE [2025-03-17 Mon] Implementacion de EM minibatch
+
+
+** Retornos logaritmicos diarios
+Estan definidos por:
+r_t = ln(P_t) - ln(P_{t-1})
+P_t es el precio de cierre en el día t
+P_{t-1} es el precio de cierre en el día anterior
+
+#+BEGIN_SRC python :session :results output
+log_returns = np.log(df).diff().dropna()
+
+# Paso 2: Normalizar los retornos logarítmicos (enfoque global)
+normalized_returns = (log_returns - log_returns.mean()) / log_returns.std()
+
+# Alternativa: Normalización con ventana deslizante (ejemplo con 252 días)
+def rolling_normalize(series, window=252):
+    rolled_mean = series.rolling(window=window).mean()
+    rolled_std = series.rolling(window=window).std()
+    normalized = (series - rolled_mean) / rolled_std
+    return normalized
+
+normalized_rolling = log_returns.apply(lambda x: rolling_normalize(x))
+
+** 
+#+END_SRC
+* Referencias
+
+** Terminologia (thanks gpt/deepseek/claude)
+
+*** pair trading
+Spread pair trading is a market-neutral strategy that aims to profit from the price difference between two correlated assets by simultaneously taking long and short positions. The goal is to capitalize on temporary deviations in their historical price relationship, hoping that the spread will revert to its mean
+
+*** Mean Reversion:
+The strategy assumes that the spread will eventually return to its historical average, even if it deviates temporarily.
+
+*** Spread:
+The spread refers to the difference in price between the two assets
+
+Spread is defined as:
+
+\[ S_t = P_{l,t} - \beta P_{s,t} \]
+
+where $P_{l,t}$ is the long poistion and $P_{s,t}$ is the short position.
+
+A long position in trading refers to buying a security (such as a stock, bond, or commodity) with the expectation that its price will increase over time. If the price rises, the trader can sell it later at a higher price to make a profit.
+A short position is when a trader sells a security they do not own, borrowing it with the expectation that its price will decline. The trader aims to buy it back later at a lower price, returning it to the lender and pocketing the difference as profit.
+Beta (β) measures how much an asset or portfolio moves relative to the market (e.g., S&P 500).
+    β > 1  The asset is more volatile than the market (amplifies market movements).
+    β < 1  The asset is less volatile than the market.
+
+Beta (β) is the slope coefficient in a linear regression between the returns of a specific asset and the returns of the market index.
+
+En los modelos mean-reverting necesitamos hacer predicciones del spread (como se van de las media los assets).
+Pairs trading is  a special form of Statistical Arbitrage
+
+Spread is defined as:
+
+\[ S_t = P_{l,t} - \beta P_{s,t} \]
+
+where $P_{l,t}$ is the long poistion and $P_{s,t}$ is the short position.
+
+*** Return of the spread portfolio:
+
+\[ y_t = \frac{S_{t} - S_{t-1}}{S_{t-1}} \]
+*** Market Neutral:
+Because of the long and short positions, the overall market direction doesn't matter; the strategy focuses on the relative performance of the pair
+*** cointegration p-value test
+1. Cointegration Testing (e.g., Engle-Granger Test):
+
+    Purpose: To test whether two non-stationary price series have a stable long-term relationship.
+
+    Method: You typically regress one stock's prices on another and then perform a unit root test (like the Augmented Dickey-Fuller, or ADF test) on the residuals.
+
+    P-value Interpretation:
+
+        Low p-value (e.g., < 0.05): Reject the null hypothesis of a unit root ⇒ residuals are stationary ⇒ the pair is cointegrated.
+
+        High p-value: Cannot reject the null ⇒ residuals are non-stationary ⇒ the pair is not cointegrated, hence not suitable for pair trading.
+
+2. ADF Test on Spread (Post-Regression):
+
+    In practice, after identifying the spread (difference or linear combination of two assets), the ADF test is applied directly to the spread.
+
+    The p-value here tells you whether the spread mean-reverts, a key condition for executing a mean-reverting trading strategy.
+
+
+** Cointegration
+Improving Cointegration-Based Pairs Trading Strategy with Asymptotic Analyses and Convergence Rate Filters
+https://link.springer.com/article/10.1007/s10614-023-10539-4
+
+https://link.springer.com/article/10.1007/s00186-021-00751-z
+
+Asymptotic analyses for trend-stationary pairs trading strategy in high-frequency trading
+https://link.springer.com/article/10.1007/s11156-024-01293-1
+
+
+** State space models applied to time series
+*** Ramos, André, Davi Valladao, and Alexandre Street. "Time Series Analysis by State Space Learning." arXiv preprint arXiv:2408.09120 (2024). :blaquier:
+*** J Durbin and S. J Koopman. Time Series Analysis by State Space Models. 2012.
+[[/home/pulido/alm/ref/books/stat/durbin-koopman_time-series-analysis-by-state-space-methods_2012.pdf]]
+** Econophysics
+***  Econophysics and Physical Economics -- Peter Richmond, Jurgen Mimkes, Stefan Hutzler -- 1, PS, 2013 -- Oxford University PressOxford
+** NN applied to time series
+*** Rangapuram, S.S., Seeger, M.W., Gasthaus, J., Stella, L., Wang, Y. and Januschowski, T., 2018. Deep state space models for time series forecasting. Advances in neural information processing systems, 31.
+https://proceedings.neurips.cc/paper/2018/file/5cf68969fb67aa6082363a6d4e6468e2-Paper.pdf
+*** Vuong, Van-Dai, Luong-Ha Nguyen, and James-A. Goulet. "Coupling LSTM neural networks and state-space models through analytically tractable inference." International Journal of Forecasting 41.1 (2025): 128-140.
+*** Negri, Pablo, Priscila Ramos, and Martin Breitkopf. "Regional commodities price volatility assessment using self-driven recurrent networks." Progress in Pattern Recognition, Image Analysis, Computer Vision, and Applications: 25th Iberoamerican Congress, CIARP 2021, Porto, Portugal, May 10–13, 2021, Revised Selected Papers 25. Springer International Publishing, 2021.
+
+** Links web
+*** RNN + ssm
+https://medium.com/@siddharthapramanik771/time-series-forecasting-with-state-space-models-a-deep-dive-into-theoretical-foundations-and-5776ba43dc73
+
+*** volatility prediction with RNNs
+https://github.com/ektoravlonitis/Implied-Volatility-Prediction
+*** mean reversion
+https://www.investopedia.com/terms/m/meanreversion.asp
+*** Hurst exponent
+https://en.wikipedia.org/wiki/Hurst_exponent
+*** Trend following
+https://en.wikipedia.org/wiki/Trend_following
+
+** Data
+
+*** M4 competition
+**** Makridakis, S., Spiliotis, E. and Assimakopoulos, V., 2020. The M4 Competition: 100,000 t
+**** towardsdata...
+https://towardsdatascience.com/the-m4-time-series-forecasting-competition-with-thymeboost-b31196fc319/
+https://proceedings.neurips.cc/paper/2018/file/5cf68969fb67aa6082363a6d4e6468e2-Paper.pdf
+- two time scale models:
+  https://arxiv.org/pdf/1710.05244
+- https://ieeexplore.ieee.org/document/7407269
+-- two time scales https://www.tandfonline.com/doi/abs/10.1198/016214505000000169
+** Codigos en python
+https://github.com/KidQuant/Pairs-Trading-With-Python
+
+https://github.com/AJeanis/Pairs-Trading
+
+https://github.com/shimonanarang/pair-trading
+from statsmodels.tsa.vector_ar.vecm import coint_johansen
+
+https://github.com/aconstandinou/pairs-trading-equities
+
+https://github.com/stefan-jansen/machine-learning-for-trading/tree/main
+esto tiene que ver con el libro...
+
+
+https://github.com/fox-techniques/plutus-pairtrading
+
+
+Considerando trends.
+
+Lo primero que deberia hacer es, por un lado ir eliminando el trend en la serie de tiempo y ver si con esto funcionaria mejor la estrategia de pair trading. En ese caso luego tengo que modelar y tomar decisiones considerando cambios en el trend y cambios en el 
+
+* Report
+
+** kernels
+https://towardsdatascience.com/kernel-methods-a-simple-introduction-4a26dcbe4ebd/
+ Kernel methods do this by mapping the input space of the data to a higher dimensional feature space, in which simple linear models can be trained, resulting in efficient, low bias low variance models.
+
+Kernel methods use kernels (or basis functions) to map the input data into a different space. After this mapping, simple models can be trained on the new feature space, instead of the input space, which can result in an increase in the performance of the models.
+
+In a regression problem, we are trying to estimate the optimal function to infer Y from X. If we have a non-linear relationship between X and Y, one cannot simply fit a linear model on this data. However, the goal of kernel methods is to use these linear models and still create a non-linear relationship.
+
+Kernel methods do this by transforming the data to a higher dimension and fitting a linear model on this one. By doing this, we are effectively fitting a higher-order model in the original input space.
+
+We can construct a design matrix U by taking M basis functions (ϕ), each parameterized by their own mean and standard deviation. The mean in the equation above will have a dimensionality of (dx1). So for every data point in our input space, we apply M basis functions turning the input dimensions (Nxd) into a new design matrix (NxM).
+
+RBFs use Gaussian basis functions. Each basis function represents a Gaussian distribution in the input space. Each data point is evaluated in all of the Gaussian distributions. The result is a mapping of the input vector from d dimensions to M dimensions.
+
+To choose the means and standard deviations that parametrize these Gaussian distributions, one can use k-means clustering to attain the means and standard deviations to parametrize the basis functions.
+** Exploracion de datos
+Lectura y eliminacion de las series de tiempo que no tienen todos los datos en el rango de tiempos requerido.
+
+Series de tiempo de las empresas  mas correlacionadas con la serie de tiempo de Exxon. Se calcula polinomio que fittea la media y la varianza
+
+[[./fig/ts_vars1.png]]
+
+[[./fig/ts_vars2.png]]
+
+Estas fueron realizadas con el read_data.py funcion meanvar_ts
+
+Como se modela esta media y las perturbaciones sobre esta? quizas se puede pensar en:
+
+\[ x_k = f_p(t_k) + M (x_k - f_p(t_{k-1})) \]
+donde $f_p(t_k)$ es la media obtenida con un polinomio de algun grado (se uso 5). En este caso perdemos todo tipo de sensibilidad a la media. Quizas se pueda trabajar con dos modelos, uno a escala de tiempo cortas mientras otro sea de mas larga escala y tenga que ver mas con las tendencias de largo plazo?
+
+
+
+Dado los valores perturbados (sin sus medias) los histogramas resultantes son:
+
+[[./fig/histo_1.png]]
+
+[[./fig/histo_2.png]]
+
+
+Buscando las empresas que brinden informacion predictiva de Exxon. Para el analisis se trabaja con las perturbaciones.
+
+
+correlation
+['HES' 'VLO' 'CVX' 'EOG' 'FANG.O']
+[0.8808147  0.86155329 0.85183778 0.84672413 0.8328526 ]
+mi
+['HES' 'CVX' 'VLO' 'EOG' 'MPC']
+[0.90350091 0.89488627 0.82643712 0.7681102  0.73915024]
+mi + copula
+['HES' 'CVX' 'VLO' 'EOG' 'FANG.O']
+[0.90767997 0.89705539 0.83062718 0.74534382 0.73686565]
+Te
+['GLNG.O' 'MPC' 'HES' 'BTU' 'EOG']
+[0.13623239 0.11524044 0.09142136 0.08763841 0.07733212]
+
+
+Mutual information with time lag. Cuanta informacion hay en los dias previos sobre el valor de la accion de Exxon. 
+
+[[./fig/mi_1.png]]
+
+Interesante que VLO posee mayor informacion a 5 dias mientras HES y CVX la superan para 0-1 dia.
+
+** Propuesta de uso de un HMM estimado con EM-EnLF para estrategias de inversion
+
+Se selecciona un conjunto peque\~no de variables (precio de cierre de activos) que presentan mas alta correlaciona con la variable de inter\'es por ejemplo ExxonMobil (XOM).
+
+Definimos un hidden Markov model (HMM) lineal o tambi\'en denominado state-space model (SSM) por, una ecuaci\'on de predicci\'on estoc\'astica y un operador observacional estoc\'astico, 
+\[ \v x_{k} = \v M_k \v x_{k-1} + \eta_k, \]
+
+\[ \v y_{k} = \v H \v x_k + \nu_k, \]
+donde $\v x_{k}$ es el estado oculto, $\v y_k$ representa las observaciones del sistema, $\v H$ es el operador de observaci\'on asumido fijo, $\v M_k$ es la matriz de transici\'on, el error de modelo es $\eta_k \sim \mathcal N(\v 0, \v Q)$ y el error observacional $\nu_k \sim \mathcal N(\v 0, \v R)$ asumimos que las covarianzas son estacionarias por el momento (en el rango de tiempos donde estaremos estimando estos par\'ametros).
+
+Del HMM conocemos una serie de tiempos de las observaciones $\v y_{1:K}=\{\v y_1 \cdots \v y_K\}$ y adem\'as conocemos $\v H$ (asumido fijo) mientras el resto de los par\'ametros y variables del HMM son desconocidos, $\v M_k$, $\v R$, $\v Q$, y $\v x_k$ y seran estimados por la metodolog\'ia usando las observaciones.
+
+El modelo estimado usando con 6 meses de datos y se utilizara un par de a~nos para su validacion determinando el retorno. La ventana de observaciones se utilizara en forma movil para ir actualizando los parametros del sistema en forma suave. Hay varios hiperparametros que se pueden optimizar con esta metodologia.
+*** Estimacion con el EM-EnKF
+
+Se propone representar la evoluci\'on del sistema con un HMM/SSM en el cual se utilizar\'a 10 variables de estado. Por otro lado se tienen 6 observaciones (correspondientes a las 6 empresas mas correlacionadas). Es decir que tenemos 4 variables ocultas las cuales tratar\'an de explicar aspectos no predichos con el modelo de Markov de las variables observadas usando tiempos pasados. El modelo din\'amico $\v M_k$ a proponer es un modelo lineal. El $\v H$ es solo una proyecci\'on del estado a las variables observadas.
+
+Se propone trabajar con el filtro de Kalman por ensambles con un estado aumentado. El estado aumentado contiene 110 dimensiones, correspondientes a las variables y a los par\'ametros del modelo $M$ del sistema.
+
+Usando un set de $K$ observaciones pasadas recientes $\v y_{k-l-K}:\v y_{k-l}$, se usa el algoritmo de Expectation-Maximization (acoplados al filtro de Kalman y un smoother) para estimar el $\v Q$ y el $\v R$ del sistema, mientras dentro del estado se estan estimando par\'ametros adaptativos $\v M_k$ y variables $\v x_k$. 
+
+Una vez estimados los par\'ametros se hacen predicciones desde $k-l$ (inicializando a partir del estado x_{k-l}^a y usando el modelo $\v M_{k-l}$) a $k$, $\v x_{k}^f$  estas predicciones se comparan con las observaciones en el mismo tiempo $|\v y_k - \v H \mean{\v x}_{k}^f|$ si estos residuales se encuentran fuera de algun umbral pre-establecido se decide la estrategia de inversi\'on. Considerando que la predicci\'on del modelo es la media del activo y esperando que el activo haga reversi\'on a la media.
+
+Aun no estoy convencido que utilizando diferencias entre dos activos apareados como variables del sistema pueda ser beneficioso para la prediccion en este esquema. Para mi trabajar con diferencias entre las series de tiempo sigue siendo una variable aleatoria y no agrega predictibilidad en el EM comparado a cuando utilizamos las dos variables, asumiendo podemos hacer una buena prediccion de la media de ambas variables y detectar las correlaciones que estas tienen entre si. Si como estrategia de inversion una vez realizada la prediccion por el HMM se podria utilizar el concepto de pair trading.
+
+*** Potenciales mejoras
+\begin{itemize}
+\item Utilizar un intervalo de tiempos para pre-entrenamiento y luego la estimacion del intervalo actual con condiciones iniciales las estimadas en pre-entrenamiento
+\item Incorporar una estructura de covarianza que varie en el tiempo. en $\v P^f$ o en $\v Q$. Mediante un modelo GARCH para Q
+\item  La covarianza de la observacion puede variar de acuerdo al nivel de liquidez del mercado.
+\item Regularizacion del modelo, ya sea asumiendo cambios lentos o asumiendo shrinkage al modelo lineal fijo (Estimado con regresion lineal sobre los 6 meses). 
+
+\end{itemize}
+Que se puede usar para shrinkage? Referencias de shrinkage en economia:
+
+https://apps.unive.it/server/eventi/26795/2019_JE_bitto_SFS.pd
+https://arxiv.org/pdf/2312.10487
+Parsimony inducing priors for large scale state–space models☆
+Author links open overlay panelHedibert F. Lopes a b
+, Robert E. McCulloch a, Ruey S. Tsay c
+** Resultados EM-EnKF con parametros ajustables
+
+
+[[./tmp/linear_em-enkf_capital-old.png]]
+
+
+[[./tmp/linear_em-enkf_spread-old.png]]
+
+
+[[./tmp/linear_em-enkf_predicciones_short2.png]]
+
+** Experimento de 2-variables solas
+
+Esta es la serie de tiempo a trabajar y la diferencia entre ellas:
+
+[[./fig/adapt_1var_vars0.png]]
+
+Aqui la diferencia no es estacionaria, hay una accion que se aprecia mas en el tiempo que la otra, que se hace en este caso?
+
+Se puede tratar de eliminar esta tendencia con modelado de las medias. Influye en la estrategia de inversion si cambio la media de las series de tiempo? Entiendo que como voy a considerar desbalances de corto plazo no las voy a tener en cuenta.
+
+
+Uff voy a tener que cambiar estrategia de inversion?
+
+si tengo la diferencia que significa en terminos de la inversion?
+
+
+El EnKF-EM no esta convergiendo.
+
+Pares integrados segun p-values
+CIVI.K - WKC: p-value=0.0000
+CLNE.O - NOG: p-value=0.0002
+GPRE.O - TRGP.K: p-value=0.0003
+GPRE.O - OKE: p-value=0.0003
+AMPY.K - BTU: p-value=0.0003
+
+** Busqueda de pares
+
+Score: 1000
+('USEG.O', 'DHT') 0.0001953871790308517 0.32927091692440896 13.616261675372568
+('PNRG.O', 'SFL') 0.00046671357247518174 0.33397067804685254 14.25463238537398
+('DHT', 'USEG.O') 3.5148892335779435e-05 0.33994828256642534 10.789577068753607
+('TNK', 'USEG.O') 0.00022977661707651494 0.34193525363004046 9.720482055733232
+('TK', 'USEG.O') 2.3538215488061918e-05 0.35046833161644825 10.027635505213015
+('INSW.K', 'DHT') 6.88295351829513e-06 0.35069377674368735 14.080772105111528
+('TRMD.O', 'DHT') 3.799209051556536e-07 0.35412011633427476 11.86946518693878
+('MTR', 'USEG.O') 0.0005389695250936039 0.34894673217950967 12.868585040443087
+('TRMD.O', 'USEG.O') 0.0004657491755191776 0.35563281814510495 10.486320221172665
+('INSW.K', 'USEG.O') 0.00023408310401416604 0.36057236346548355 9.988897150457497
+('KGEI.O', 'USEG.O') 0.00023325128178668602 0.36103537748354575 10.873304801815598
+('DHT', 'TRMD.O') 1.740960314261695e-06 0.36552732662026405 12.970879490338783
+('USEG.O', 'INSW.K') 0.0005593246424510607 0.35877871372361414 13.875317338992541
+('USEG.O', 'TK') 0.0003819619742585562 0.36574542067179494 13.383613975411464
+('USEG.O', 'KGEI.O') 0.0005289344964219034 0.3680490590391625 15.020295981065246
+('OXY', 'AMPY.K') 1.8850035681178336e-05 0.37929940183473776 14.096739278961456
+('AMPY.K', 'OXY') 4.129726646596433e-05 0.38287503368280806 14.969827523936154
+('PBF', 'USEG.O') 0.00040892293434131963 0.37891409084820593 13.742969102254232
+('ASC', 'USEG.O') 0.0011030523010919814 0.3749905906076244 12.52805363195658
+('AM', 'REX') 0.0027213385710877598 0.3564168196372824 11.980411705346485
+
+Score:  First 500
+('AMPY.K', 'SMC') 5.1709673652338064e-05 0.311369901903043 7.32820538703822
+('APA.O', 'GASS.O') 0.00025583801106498393 0.31069954204042705 9.435662242362955
+('OVV', 'KGEI.O') 0.000602549924063983 0.3081784734576362 7.597053012000296
+('WTI', 'GASS.O') 0.0010990705547938592 0.3093363349615462 10.366579161071703
+('KOS', 'GASS.O') 0.00040045835155283184 0.32071782555184986 9.228788149643023
+('OKE', 'GASS.O') 0.0014541817219977536 0.3079872521241363 11.155815579305589
+('GTE', 'KGEI.O') 0.0010371944114222617 0.31511058597330477 7.442675093327964
+('VLO', 'GASS.O') 0.0002837282269893971 0.3257095867913309 8.881765873604461
+('COP', 'KGEI.O') 0.0006528623536902378 0.31217385773251766 6.954957742829596
+('PR', 'KGEI.O') 0.0005395705601537574 0.3256264582986162 7.420135519278337
+('CCJ', 'CIVI.K') 3.7489264845236053e-05 0.33361410911614314 9.697053268952889
+('CVX', 'GASS.O') 0.0007325057780182649 0.3252259643060595 10.29937269686531
+('MPC', 'GASS.O') 0.0006497752359243311 0.3269402451991348 10.586000336210398
+('STR', 'WTI') 0.0004084263217071955 0.33148837190947034 9.143786368492016
+('CCJ', 'AR') 0.00041605969725319624 0.3320193424641042 9.49075784304949
+('KGEI.O', 'WTI') 7.490234013051523e-05 0.33684686894302435 7.283660534782149
+('KGEI.O', 'GASS.O') 0.0007787932940226743 0.3274795055741231 8.496934327405084
+('AR', 'CCJ') 0.00016414363020191203 0.3362575615345319 9.013133372427182
+('EOG', 'GASS.O') 0.000909730546564709 0.3276240424042518 11.07730969094084
+('CIVI.K', 'CCJ') 2.321669630932885e-05 0.3394695291845833 9.442787084426968
+
+Score:  Last 500
+('BTU', 'VNOM.O') 0.0005284202924822035 0.27719079946885705 10.095009317775101
+('UEC', 'GPRE.O') 8.539844435529926e-05 0.317778902762503 8.020509933241453
+('CCJ', 'GPRE.O') 0.0003720914317601755 0.3150054997935859 9.242444133550284
+('NC', 'CRK') 0.00028082099144862327 0.3175460758240853 8.701831118334828
+('AM', 'GPRE.O') 0.00048556255597664123 0.3172851189784995 9.422120728849231
+('GASS.O', 'GPRE.O') 0.000544631898311433 0.31988005600996355 9.707622273125494
+('BWLP.K', 'PNRG.O') 0.0001909241452451219 0.32475608838682096 8.81428201354798
+('PR', 'GPRE.O') 0.0008888178673680827 0.31623431582610034 10.075037049782132
+('NC', 'DVN') 0.002153640996202312 0.3012118439421956 11.288326778682578
+('LPG', 'GPRE.O') 0.0004558192895418397 0.3242606932171214 9.5160023912423
+('PSX', 'GPRE.O') 0.0009928825550178744 0.31800353948004084 10.279553120926614
+('GPRK.K', 'KMI') 0.0005508487105587761 0.32698868950572957 10.12058163395221
+('NVGS.K', 'KOS') 0.0011267622640126062 0.31949773788828373 9.019917119252405
+('CVX', 'BTU') 0.0009828379228757937 0.3216845395500095 10.248268445480758
+('CRK', 'NC') 8.304555170357066e-05 0.33426941751793166 7.722280742141463
+('USEG.O', 'KMI') 0.0001727466662159423 0.3335955822460693 11.107720075551589
+('NFE.O', 'VNOM.O') 0.0002713553389279643 0.33362703149164075 9.809488867537677
+('REX', 'GPRE.O') 0.0005357427756985311 0.33106927326725055 9.738352415225458
+('PBF', 'HES') 0.00026287234010478037 0.3367903055409728 13.472588186193185
+('HES', 'PBF') 0.000451928053367018 0.33621850586092417 14.157080912594552
+
+** Hyperoptimizacion de pares
+
+Uno de los problemas qu surge es que la tecnica termina eligiendo pares con las mismas acciones.
+[['KGEI.O' 'RRC']
+ ['KGEI.O' 'GTE']
+ ['OVV' 'KGEI.O']
+ ['KGEI.O' 'EOG']
+ ['GASS.O' 'CIVI.K']
+ ['FANG.O' 'KGEI.O']
+ ['NAT' 'CRK']
+ ['DVN' 'KGEI.O']
+ ['KGEI.O' 'TRGP.K']
+ ['KGEI.O' 'CTRA.K']]
+El problema de esto es que puede ser poco robusto para cuando este con datos testing.
+
+* Testing code
+16
+17
+Total 33
+
+** list of tuples as ouput of a function
+#+BEGIN_SRC python :session :results output
+import numpy as np
+from itertools import permutations
+
+def fn(i,j):
+    a=np.random.randn(i,j)
+    b=np.random.randn(i,j)
+    return a+b,a*b
+indices = list(range(4))
+pairs = list(permutations(indices, 2))
+res=[]
+for i,(i1, i2) in enumerate(pairs):
+    print(i1,i2)
+    res.append(fn(i1,i2))
+
+print(res[5][0])
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+0 1
+0 2
+0 3
+1 0
+1 2
+1 3
+2 0
+2 1
+2 3
+3 0
+3 1
+3 2
+[[1.37919918 2.57200128 1.70839453]]
+#+end_example
+
+** zscore
+Requiero un codigo python numpy para calcular el z-score de una serie de tiempo, al zscore le quiero agregar la prediccion de beta entre los dos activos?
+
+*** Deepseek
+#+BEGIN_SRC python :session :results output
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy.stats import linregress
+
+def calcular_beta_zscores(activo_x, activo_y, ventana=30, zscore_window=20):
+    """
+    Calcula:
+    1. Beta entre dos activos (ventana móvil)
+    2. Spread entre los activos usando la relación beta
+    3. Z-Score del spread (ventana móvil)
+    
+    Parámetros:
+    activo_x, activo_y -- arrays/pandas Series con precios/rendimientos
+    ventana -- tamaño de ventana para cálculo de beta
+    zscore_window -- tamaño de ventana para cálculo del Z-Score
+    
+    Retorna:
+    DataFrame con beta, spread y Z-Score
+    """
+    # Convertir a rendimientos si son precios
+    if np.all(activo_x > 0) and np.all(activo_y > 0):
+        ret_x = np.diff(np.log(activo_x))
+        ret_y = np.diff(np.log(activo_y))
+    else:
+        ret_x = activo_x[1:]
+        ret_y = activo_y[1:]
+    
+    # Asegurarse que tienen la misma longitud
+    min_len = min(len(ret_x), len(ret_y))
+    ret_x = ret_x[:min_len]
+    ret_y = ret_y[:min_len]
+    
+    # Inicializar arrays para resultados
+    betas = np.full_like(ret_x, np.nan)
+    spreads = np.full_like(ret_x, np.nan)
+    zscores = np.full_like(ret_x, np.nan)
+    
+    # Calcular beta móvil y spread
+    for i in range(ventana, len(ret_x)):
+        window_x = ret_x[i-ventana:i]
+        window_y = ret_y[i-ventana:i]
+        
+        # Regresión lineal para calcular beta
+        slope, intercept, _, _, _ = linregress(window_x, window_y)
+        betas[i] = slope
+        
+        # Calcular spread actual usando la última beta
+        spreads[i] = ret_y[i] - (betas[i] * ret_x[i] + intercept)
+        
+        # Calcular Z-Score del spread (ventana móvil)
+        if i >= zscore_window:
+            spread_window = spreads[i-zscore_window+1:i+1]
+            mean_spread = np.nanmean(spread_window)
+            std_spread = np.nanstd(spread_window)
+            if std_spread > 0:
+                zscores[i] = (spreads[i] - mean_spread) / std_spread
+    
+    # Crear DataFrame con resultados
+    resultados = pd.DataFrame({
+        'Beta': betas,
+        'Spread': spreads,
+        'ZScore': zscores
+    }, index=range(1, len(ret_x)+1))  # Usar índices desde 1 porque usamos diff()
+    
+    return resultados
+
+# Ejemplo de uso
+if __name__ == "__main__":
+    np.random.seed(42)
+    
+    # Generar datos de ejemplo (dos activos correlacionados)
+    n = 500
+    activo_base = np.cumsum(np.random.randn(n))
+    activo_y = 0.7 * activo_base + 0.3 * np.cumsum(np.random.randn(n)) + 2
+    
+    # Calcular beta y Z-Scores
+    resultados = calcular_beta_zscores(activo_x=activo_base, 
+                                      activo_y=activo_y,
+                                      ventana=60,
+                                      zscore_window=30)
+    
+    # Visualización
+    plt.figure(figsize=(12, 8))
+    
+    plt.subplot(3, 1, 1)
+    plt.plot(resultados['Beta'], label='Beta móvil')
+    plt.axhline(0.7, color='r', linestyle='--', label='Beta verdadera (0.7)')
+    plt.title('Beta entre Activos (Ventana móvil)')
+    plt.legend()
+    
+    plt.subplot(3, 1, 2)
+    plt.plot(resultados['Spread'], label='Spread')
+    plt.title('Spread entre Activos')
+    plt.legend()
+    
+    plt.subplot(3, 1, 3)
+    plt.plot(resultados['ZScore'], label='Z-Score del Spread')
+    plt.axhline(0, color='gray', linestyle='--')
+    plt.axhline(1, color='red', linestyle=':', alpha=0.5)
+    plt.axhline(-1, color='red', linestyle=':', alpha=0.5)
+    plt.axhline(2, color='red', linestyle=':', alpha=0.3)
+    plt.axhline(-2, color='red', linestyle=':', alpha=0.3)
+    plt.title('Z-Score del Spread')
+    plt.legend()
+    
+    plt.tight_layout()
+    plt.show()
+
+#+END_SRC
+
+#+RESULTS:
+
+*** Chatgpt
+
+#+BEGIN_SRC python :session :results output
+import numpy as np
+
+def calcular_zscore_beta(serie_x, serie_y, ventana=60):
+    """
+    Calcula el z-score de la serie de spread ajustado usando la beta dinámica.
+    
+    serie_x: np.array, precios del activo X
+    serie_y: np.array, precios del activo Y
+    ventana: int, número de observaciones para el cálculo móvil
+    
+    Retorna:
+    z_scores: np.array con el z-score ajustado por beta
+    betas: np.array con la beta dinámica
+    """
+    serie_x = np.asarray(serie_x)
+    serie_y = np.asarray(serie_y)
+    
+    z_scores = np.empty_like(serie_x)
+    betas = np.empty_like(serie_x)
+    
+    z_scores[:] = np.nan
+    betas[:] = np.nan
+
+    for t in range(ventana, len(serie_x)):
+        x_win = serie_x[t-ventana:t]
+        y_win = serie_y[t-ventana:t]
+        
+        # Calcular beta como pendiente de la regresión lineal
+        cov = np.cov(x_win, y_win)
+        beta = cov[0, 1] / cov[0, 0]
+        betas[t] = beta
+
+        # Spread ajustado con beta
+        spread = serie_y[t] - beta * serie_x[t]
+
+        # Media y std del spread en la ventana
+        spread_hist = y_win - beta * x_win
+        mean_spread = np.mean(spread_hist)
+        std_spread = np.std(spread_hist)
+
+        # Calcular z-score
+        if std_spread > 0:
+            z_scores[t] = (spread - mean_spread) / std_spread
+
+    return z_sco
+#+END_SRC
+
+** codigo para Santiago
+#+BEGIN_SRC python :session :results outputd
+def erolling(data, period):
+    """
+    Computes the exponential moving average (EMA) of a 1D array.
+        """
+    alpha = 2 / (period + 1)
+    ema, ema_sq, std= np.zeros((3,*data.shape))
+
+    ema[0] = data[0]
+    ema_sq[0] = data[0]**2
+    std[0] = 0.0
+    
+    for t in range(1, len(data)):
+        ema[t] = alpha * data[t] + (1 - alpha) * ema[t-1]
+        ema_sq[t] = alpha * (data[t]**2) + (1 - alpha) * ema_sq[t-1]
+        variance = ema_sq[t] - ema[t]**2
+        std[t] = np.sqrt(max(variance, 0))  # Avoid negative variance due to float error
+
+    return ema, std
+def calculate_spread_t( x, y,window):
+    """
+    Calcula el spread entre dos activos usando regresion lineal
+
+    Usa una ventana para calcular alpha y beta y luego predice a un tiempo
+    """
+    model = LinearRegression()
+    spread=np.zeros(y.shape[0]-window)
+    for it in range(window,x.shape[0]):
+        model.fit(x[it-window:it-1], y[it-window:it-1])
+        beta = model.coef_  
+        alpha = model.intercept_  
+        spread[it-window] = y[it] - model.predict([x[it]])
+
+    return spread
+def calculate_zscore( spread, window):
+    spread_mean, spread_std = erolling(spread,window)
+    zscore = (spread - spread_mean) / spread_std
+    return zscore
+#+END_SRC
+
+#+BEGIN_SRC python :session :results output
+import numpy as np
+
+def hurst_exponent(ts, min_lag=2, max_lag=100):
+    """
+    Estimate the Hurst Exponent of a time series using the Rescaled Range (R/S) method.
+
+    Parameters:
+        ts (array-like): Time series data.
+        min_lag (int): Minimum lag to consider.
+        max_lag (int): Maximum lag to consider.
+
+    Returns:
+        float: Estimated Hurst exponent.
+    """
+    ts = np.asarray(ts)
+    lags = range(min_lag, max_lag)
+
+    rs = []
+    for lag in lags:
+        segments = len(ts) // lag
+        if segments < 2:
+            break
+
+        rescaled_ranges = []
+        for i in range(segments):
+            chunk = ts[i * lag:(i + 1) * lag]
+            mean_adj = chunk - np.mean(chunk)
+            cumulative = np.cumsum(mean_adj)
+            R = np.max(cumulative) - np.min(cumulative)
+            S = np.std(chunk)
+            if S > 0:
+                rescaled_ranges.append(R / S)
+
+        if rescaled_ranges:
+            rs.append(np.mean(rescaled_ranges))
+
+    # Linear fit to log-log data
+    log_rs = np.log(rs)
+    log_lags = np.log(list(lags)[:len(log_rs)])
+
+    hurst, _ = np.polyfit(log_lags, log_rs, 1)
+    return hurst
+
+def calculate_hurst_exponent(time_series, max_lag=None, plot=False):
+    """
+    Calculate the Hurst exponent of a time series using the rescaled range (R/S) analysis.
+    
+    The Hurst exponent (H) characterizes the long-term memory of a time series:
+    - H ≈ 0.5: Random walk (Brownian motion, no memory)
+    - 0 < H < 0.5: Mean-reverting (anti-persistent) series
+    - 0.5 < H < 1: Trending (persistent) series
+    
+    Parameters:
+    -----------
+    time_series : array-like
+        The input time series data
+    max_lag : int, optional (default=None)
+        Maximum lag to consider. If None, uses 1/10 of the series length
+    plot : bool, optional (default=False)
+        Whether to plot the results
+        
+    Returns:
+    --------
+    tuple
+        (hurst_exponent, intercept, r_squared)
+    """
+    # Convert to numpy array and calculate returns/changes
+    ts = np.asarray(time_series)
+    
+    # Determine lags - use logarithmically spaced values
+    if max_lag is None:
+        max_lag = int(len(ts) // 10)  # Default: use up to 1/10 of series length
+    
+    # Use logarithmically spaced lags (minimum 4 points)
+    lags = np.unique(np.logspace(0.7, np.log10(max_lag), num=15).astype(int))
+    lags = lags[lags >= 2]  # Ensure minimum lag is at least 2
+    
+    # Arrays to store results
+    rs_values = []
+    
+    # Calculate R/S for different lags
+    for lag in lags:
+        # Split the series into non-overlapping windows of size lag
+        remainder = len(ts) % lag
+        if remainder > 0:
+            ts_used = ts[:-remainder]  # Truncate the series to fit windows evenly
+        else:
+            ts_used = ts
+            
+        n_groups = len(ts_used) // lag
+        
+        if n_groups == 0:
+            continue  # Skip lags that don't fit at least one window
+            
+        # Reshape the series into n_groups rows of length lag
+        windows = ts_used.reshape((n_groups, lag))
+        
+        # For each window, calculate the R/S statistic
+        rs_array = np.zeros(n_groups)
+        for i in range(n_groups):
+            window = windows[i, :]
+            # Mean-adjusted series
+            mean_adj = window - np.mean(window)
+            # Cumulative sum
+            cum_sum = np.cumsum(mean_adj)
+            # Range (max - min of cumulative sum)
+            r = np.max(cum_sum) - np.min(cum_sum)
+            # Standard deviation
+            s = np.std(window, ddof=1)
+            # R/S ratio (handle the case when s=0)
+            rs_array[i] = r / s if s > 0 else 0
+        
+        # Average R/S for this lag
+        rs_values.append(np.mean(rs_array))
+    
+    # Perform linear regression on log-log values to estimate H
+    log_lags = np.log10(lags)
+    log_rs = np.log10(rs_values)
+    
+    # Filter out any -inf values from log_rs (can happen if rs is 0)
+    valid_idx = np.isfinite(log_rs)
+    if not np.any(valid_idx):
+        return np.nan, np.nan, np.nan
+    
+    log_lags_valid = log_lags[valid_idx]
+    log_rs_valid = log_rs[valid_idx]
+    
+    # Linear regression
+    slope, intercept, r_value, p_value, std_err = stats.linregress(log_lags_valid, log_rs_valid)
+    r_squared = r_value**2
+    
+    # Plot if requested
+    if plot:
+        plt.figure(figsize=(10, 6))
+        plt.scatter(log_lags, log_rs, label='R/S values')
+        plt.plot(log_lags_valid, intercept + slope * log_lags_valid, 'r', 
+                 label=f'H = {slope:.3f}, R² = {r_squared:.3f}')
+        plt.grid(True, alpha=0.3)
+        plt.xlabel('Log10(lag)')
+        plt.ylabel('Log10(R/S)')
+        plt.title('Rescaled Range Analysis - Hurst Exponent Estimation')
+        plt.legend()
+        plt.show()
+    
+    return slope, intercept, r_squared
+#+END_SRC
+
+** Calculo de medias y varianzas moviles pero usando exponential weiths 
+#+BEGIN_SRC python :session :results output
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+def calculate_ewma_ewmv(time_series, alpha=0.2, initial_mean=None, initial_variance=None):
+    """
+    Calculate Exponentially Weighted Moving Average (EWMA) and
+    Exponentially Weighted Moving Variance (EWMV) for a time series.
+    
+    Parameters:
+    -----------
+    time_series : array-like
+        The input time series data
+    alpha : float, optional (default=0.2)
+        The smoothing factor, between 0 and 1
+        - Higher alpha gives more weight to recent observations
+        - Lower alpha results in more smoothing
+    initial_mean : float, optional (default=None)
+        Initial value for the mean. If None, uses the first value in the series
+    initial_variance : float, optional (default=None)
+        Initial value for the variance. If None, uses 0
+        
+    Returns:
+    --------
+    dict
+        A dictionary containing:
+        - 'original': original time series
+        - 'ewma': exponentially weighted moving average
+        - 'ewmv': exponentially weighted moving variance
+    """
+    # Convert input to numpy array for consistent handling
+    data = np.array(time_series)
+    n = len(data)
+    
+    # Initialize output arrays
+    ewma = np.zeros(n)
+    ewmv = np.zeros(n)
+    
+    # Set initial values
+    if initial_mean is None:
+        ewma[0] = data[0]
+    else:
+        ewma[0] = initial_mean
+        
+    if initial_variance is None:
+        ewmv[0] = 0.0
+    else:
+        ewmv[0] = initial_variance
+    
+    # Calculate EWMA and EWMV iteratively
+    for t in range(1, n):
+        # Update EWMA
+        ewma[t] = alpha * data[t] + (1 - alpha) * ewma[t-1]
+        
+        # Calculate squared deviation from the current EWMA
+        squared_dev = (data[t] - ewma[t]) ** 2
+        
+        # Update EWMV
+        ewmv[t] = alpha * squared_dev + (1 - alpha) * ewmv[t-1]
+    
+    return {
+        'original': data,
+        'ewma': ewma,
+        'ewmv': ewmv
+    }
+
+# Example usage and visualization
+def visualize_ewma_ewmv(time_series, alpha=0.2):
+    """
+    Calculate and visualize EWMA and EWMV for a given time series
+    """
+    results = calculate_ewma_ewmv(time_series, alpha)
+    
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8))
+    
+    # Plot time series and EWMA
+    ax1.plot(results['original'], label='Original', color='gray', alpha=0.7)
+    ax1.plot(results['ewma'], label=f'EWMA (α={alpha})', color='blue')
+    ax1.set_title('Time Series with Exponentially Weighted Moving Average')
+    ax1.legend()
+    ax1.grid(True)
+    
+    # Plot EWMV
+    ax2.plot(results['ewmv'], label=f'EWMV (α={alpha})', color='red')
+    ax2.set_title('Exponentially Weighted Moving Variance')
+    ax2.legend()
+    ax2.grid(True)
+    
+    plt.tight_layout()
+    plt.show()
+    
+    return results
+
+# Example with synthetic data
+if __name__ == "__main__":
+    # Generate sample data with changing variance
+    np.random.seed(42)
+    n = 200
+    
+    # Create a time series with changing mean and variance
+    regime1 = np.random.normal(0, 1, n//2)
+    regime2 = np.random.normal(3, 2, n//2)
+    combined_series = np.concatenate([regime1, regime2])
+    
+    # Test with different alpha values
+    results = visualize_ewma_ewmv(combined_series, alpha=0.1)
+#+END_SRC
+
+
+**
+
+#+BEGIN_SRC python :session :results output
+import numpy as np
+        mask = (arr[:, :-1] == False) & (arr[:, 1:] == True)
+        indices = np.argwhere(mask)  # Get (row, col) indices where transition happens
+        
+        for row, col in indices:
+            new_arr = np.zeros(shape, dtype=bool)  # Start with all False
+            new_arr[row, col+1:] = True  # Set True after the transition
+            transition_arrays.append(new_arr)
+
+        new_arr = np.zeros_like(arr, dtype=bool)
+        for j in range(arr.shape[1]):  # Iterate over columns
+            # Find the first index where False turns into True
+            transition_indices = np.where((arr[:-1, j] == False) & (arr[1:, j] == True))[0]
+            if transition_indices.size > 0:
+                new_arr[transition_indices[0] + 1 :, j] = True  # Set all rows after the transition to True
+
+def generate_new_boolean_array(arr):
+    # Ensure input is a boolean array
+    arr = np.asarray(arr, dtype=bool)
+    
+    # Identify positions where False is followed by True
+    mask = (arr[:-1] == False) & (arr[1:] == True)
+    
+    # Create output array (same length as input, default False)
+    new_arr = np.zeros_like(arr, dtype=bool)
+    
+    # Set True at positions where False is followed by True
+    new_arr[1:][mask] = True
+    
+    return new_arr
+
+# Example usage
+arr = np.array([True, False, False, True, False, True, True, False, True])
+new_arr = generate_new_boolean_array(arr)
+print(new_arr)
+
+#+END_SRC
+
+#+RESULTS:
+: [False False False  True False  True False False  True]
+
+#+BEGIN_SRC python :session :results output
+import pandas as pd
+import os
+from datetime import datetime
+import argparse
+import numpy as np
+
+def load_historical_prices(npz_filepath):
+    """
+    Carga los datos historicos de precios desde un archivo NPZ
+    y los convierte a arrays de NumPy organizados.
+    
+    Parametros:
+    - npz_filepath: Ruta al archivo NPZ generado por filter_historical_prices
+    
+    Retorna:
+    - Un diccionario con los siguientes elementos:
+      - 'fechas': Array de fechas como objetos datetime
+      - 'precios': Array 2D con los precios (filas=fechas, columnas=tickers)
+      - 'tickers': Lista de simbolos bursatiles
+      - 'df': DataFrame de pandas con los datos organizados
+      - 'metadata': Informacion adicional guardada en el archivo
+    """
+    try:
+        # Cargar el archivo NPZ
+        datos_cargados = np.load(npz_filepath, allow_pickle=True)
+        
+        # Extraer los arrays de datos
+        fechas_array = datos_cargados['fechas']
+        datos_array = datos_cargados['datos']
+        tickers = datos_cargados['tickers']
+        
+        # Convertir las fechas de timestamps a objetos datetime
+        fechas_datetime = pd.to_datetime(fechas_array)
+        
+        # Crear un DataFrame para facilitar la manipulacion
+        df = pd.DataFrame(datos_array, columns=tickers)
+        df.insert(0, 'Date', fechas_datetime)
+        
+        # Extraer metadata adicional
+        metadata = {}
+        for key in datos_cargados.files:
+            if key not in ['fechas', 'datos', 'tickers']:
+                metadata[key] = datos_cargados[key]
+        
+        # Organizar todos los datos en un diccionario de retorno
+        resultado = {
+            'fechas': fechas_datetime.values,
+            'precios': datos_array,
+            'tickers': tickers,
+            'df': df,
+            'metadata': metadata
+        }
+        
+        print(f"Datos cargados exitosamente desde {npz_filepath}")
+        print(f"Periodo: {fechas_datetime.min().strftime('%Y-%m-%d')} a {fechas_datetime.max().strftime('%Y-%m-%d')}")
+        print(f"Tickers: {len(tickers)}")
+        print(f"Registros: {len(fechas_datetime)}")
+        
+        return resultado
+    
+    except Exception as e:
+        print(f"Error al cargar el archivo NPZ: {e}")
+        return None
+res=load_historical_prices('./dat/historical_prices_20000101_20250101.npz')
+print('fechas: ',res['fechas'][:10])
+print('precios: ',res['precios'].shape)
+print('tickets: ',res['tickers'].shape)
+print('tickets: ',res['tickers'][:10])
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Datos cargados exitosamente desde ./dat/historical_prices_20000101_20250101.npz
+Periodo: 2000-01-03 a 2024-12-31
+Tickers: 28
+Registros: 6289
+fechas:  ['2000-01-03T00:00:00.000000000' '2000-01-04T00:00:00.000000000'
+ '2000-01-05T00:00:00.000000000' '2000-01-06T00:00:00.000000000'
+ '2000-01-07T00:00:00.000000000' '2000-01-10T00:00:00.000000000'
+ '2000-01-11T00:00:00.000000000' '2000-01-12T00:00:00.000000000'
+ '2000-01-13T00:00:00.000000000' '2000-01-14T00:00:00.000000000']
+precios:  (6289, 28)
+tickets:  (28,)
+tickets:  ['APA.O' 'CCJ' 'CNX' 'COP' 'CRK' 'CTRA.K' 'CVX' 'DINO.K' 'DVN' 'EOG']
+#+end_example
+
+** LSTM
+
+
+#+BEGIN_SRC python :session :results output
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+class LSTMTimeSeries(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers, output_size, dropout=0.2):
+        super(LSTMTimeSeries, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, dropout=dropout)
+        self.fc = nn.Linear(hidden_size, output_size)
+        
+    def forward(self, x):
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+        
+        out, _ = self.lstm(x, (h0, c0))
+        out = self.fc(out[:, -1, :])
+        return out
+
+class MLPTrendPredictor(nn.Module):
+    def __init__(self, input_size, hidden_sizes, output_size):
+        super(MLPTrendPredictor, self).__init__()
+        layers = []
+        prev_size = input_size
+        for h in hidden_sizes:
+            layers.append(nn.Linear(prev_size, h))
+            layers.append(nn.ReLU())
+            prev_size = h
+        layers.append(nn.Linear(prev_size, output_size))
+        self.model = nn.Sequential(*layers)
+        
+    def forward(self, x):
+        return self.model(x)
+
+# Example usage
+input_size = 4  # Number of financial variables
+hidden_size = 64
+num_layers = 2
+output_size = 4  # Predicting the same number of variables
+
+lstm_model = LSTMTimeSeries(input_size, hidden_size, num_layers, output_size)
+mlp_model = MLPTrendPredictor(input_size, [128, 64], output_size)
+
+# Dummy data
+batch_size = 16
+sequence_length = 30  # Number of past time steps used for prediction
+x_sample = torch.randn(batch_size, sequence_length, input_size)
+x_trend = torch.mean(x_sample, dim=1)  # Aggregate features for trend prediction
+
+y_pred_lstm = lstm_model(x_sample)
+y_pred_trend = mlp_model(x_trend)
+
+print(y_pred_lstm.shape)  # Should output (batch_size, output_size)
+print(y_pred_trend.shape)  # Should output (batch_size, output_size)
+
+#+END_SRC
+
+#+BEGIN_SRC python :session :results output
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+class LSTMTimeSeries(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers, output_size, dropout=0.2):
+        super(LSTMTimeSeries, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, dropout=dropout)
+        self.fc = nn.Linear(hidden_size, output_size)
+        
+    def forward(self, x):
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+        
+        out, _ = self.lstm(x, (h0, c0))
+        out = self.fc(out[:, -1, :])
+        return out
+
+# Example usage
+input_size = 4  # Number of financial variables
+hidden_size = 64
+num_layers = 2
+output_size = 4  # Predicting the same number of variables
+
+model = LSTMTimeSeries(input_size, hidden_size, num_layers, output_size)
+
+# Dummy data
+batch_size = 16
+sequence_length = 30  # Number of past time steps used for prediction
+x_sample = torch.randn(batch_size, sequence_length, input_size)
+y_pred = model(x_sample)
+print(y_pred.shape)  # Should output (batch_size, output_size)
+
+#+END_SRC
+
+** Caso EM-filtro
+
+Importa todas las librerias
+#+BEGIN_SRC python :session :results output
+import numpy as np, os
+import matplotlib.pyplot as plt
+import numpy.random as rnd
+import dyn
+import obs
+import utils
+#from enkf import FILTER
+from em import FILTER as filternn
+#+END_SRC
+
+#+RESULTS:
+
+Carga configuracion
+
+#+BEGIN_SRC python :session :results output
+class o_kwargs:
+    H = obs. obsind2H([0,1,2],6)
+    R = 2. * np.eye(3) 
+#    H = obs. obsind2H([0,2],6)
+#    R = 2. * np.eye(2) 
+    swH=0
+
+class conf:
+    ncy=1000
+    dtcy=0.02
+    niter=40
+    nem=100
+    par0=np.zeros(3)
+    rel_error=0.2
+    mtd='em'  # 'enkf' 'em'
+    fname='dat/gauss_em_Q0-0_r2'
+    Q0=[0.1,0.0]
+    #Q0=[0,0]#[1.,0.01]#[1.,0.01]
+    finf=np.ones(6)#*1.05
+    llast=0
+    #finf[3:]=1.01
+    #finf[0:3]=1.01
+#+END_SRC
+
+#+RESULTS:
+
+Llama al EM.
+
+#+BEGIN_SRC python :session :results output
+   
+def exp(o_kwargs,conf):
+    
+    Tmdl = dyn.augL63(dtcy=conf.dtcy,nem=conf.nem,par0=conf.par0,
+                      rel_err=conf.rel_error,
+                      )
+    X0,xt0 = Tmdl.initialization()
+
+    print('Generating observations')
+    o_kwargs=utils.obj2dict(o_kwargs)
+    Obs = obs.OBS(**o_kwargs)
+    xt_t,y_t = Obs(xt0,conf.ncy,Tmdl)
+    
+    Q0diag=np.zeros(6)
+    Q0diag[:3]=conf.Q0[0]
+    Q0diag[3:]=conf.Q0[1]
+        
+    
+    Filter=filternn(Tmdl,Obs,assmtd='perobs',xt_t=xt_t,
+                  finf=conf.finf,Q0=np.diag(Q0diag),llast=conf.llast,
+                  niter=conf.niter)
+    #Xa_t,Xf_t=Filter(X0,y_t)
+
+    res,rmse=Filter(X0,y_t)
+    return xt_t,y_t,res,rmse
+
+xt_t,y_t,res,rmse = exp(o_kwargs,conf)
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+Generating initial conditions
+Climatology
+Take initial condition from climatology
+Generating observations
+Lik:  -2781.241310299489
+RMSE:  [ 4.34512414e-01  2.90644428e-01  2.54919549e-01  7.30433014e-02
+  7.30433014e-02 -2.78124131e+03]
+Lik:  -2702.515294601514
+RMSE:  [ 3.88825652e-01  2.71866477e-01  7.65916139e-02  7.82856882e-02
+  7.82856882e-02 -2.70251529e+03]
+Lik:  -2696.7689603577005
+RMSE:  [ 3.84965365e-01  2.66186981e-01  7.84814445e-02  7.83886110e-02
+  7.83886110e-02 -2.69676896e+03]
+Lik:  -2696.7014103729903
+RMSE:  [ 3.85085931e-01  2.64121255e-01  7.83725268e-02  7.83636495e-02
+  7.83636495e-02 -2.69670141e+03]
+Lik:  -2690.727823905445
+RMSE:  [ 3.84849028e-01  2.64806387e-01  7.83641982e-02  7.83652518e-02
+  7.83652518e-02 -2.69072782e+03]
+Lik:  -2687.9960546714115
+RMSE:  [ 3.69995525e-01  2.57357638e-01  7.83646321e-02  7.83644669e-02
+  7.83644689e-02 -2.68799605e+03]
+Lik:  -2684.774151201283
+RMSE:  [ 3.71367613e-01  2.53093208e-01  7.83645203e-02  7.83645496e-02
+  7.83645496e-02 -2.68477415e+03]
+Lik:  -2685.2074844921367
+RMSE:  [ 3.66796547e-01  2.49056175e-01  7.83645620e-02  7.83645621e-02
+  7.83645723e-02 -2.68520748e+03]
+Lik:  -2683.12270639387
+RMSE:  [ 3.68903617e-01  2.51666505e-01  7.83645757e-02  7.83645714e-02
+  7.83645624e-02 -2.68312271e+03]
+Lik:  -2682.0666825241005
+RMSE:  [ 3.60081382e-01  2.38391164e-01  7.83645512e-02  7.83645474e-02
+  7.83645538e-02 -2.68206668e+03]
+Lik:  -2677.3736819271016
+RMSE:  [ 3.60913751e-01  2.46956837e-01  7.83645371e-02  7.83645284e-02
+  7.83645134e-02 -2.67737368e+03]
+Lik:  -2676.15422646758
+RMSE:  [ 3.56854385e-01  2.37138694e-01  7.83645763e-02  7.83645841e-02
+  7.83646070e-02 -2.67615423e+03]
+Lik:  -2672.998418803072
+RMSE:  [ 3.60451301e-01  2.37477640e-01  7.83645724e-02  7.83645701e-02
+  7.83645563e-02 -2.67299842e+03]
+Lik:  -2669.192669337019
+RMSE:  [ 3.53302880e-01  2.40356435e-01  7.83645956e-02  7.83646121e-02
+  7.83646455e-02 -2.66919267e+03]
+Lik:  -2671.7714715010616
+RMSE:  [ 3.54815415e-01  2.36488872e-01  7.83645561e-02  7.83645543e-02
+  7.83645539e-02 -2.67177147e+03]
+Lik:  -2671.25544538335
+RMSE:  [ 3.62637342e-01  2.35357502e-01  7.83645499e-02  7.83645463e-02
+  7.83645409e-02 -2.67125545e+03]
+Lik:  -2669.11489657432
+RMSE:  [ 3.45412042e-01  2.28961588e-01  7.83645293e-02  7.83645205e-02
+  7.83644973e-02 -2.66911490e+03]
+Lik:  -2664.0211431725984
+RMSE:  [ 3.43470122e-01  2.29135280e-01  7.83645561e-02  7.83645715e-02
+  7.83646013e-02 -2.66402114e+03]
+Lik:  -2669.4934108170332
+RMSE:  [ 3.51551695e-01  2.29700541e-01  7.83645313e-02  7.83645308e-02
+  7.83645271e-02 -2.66949341e+03]
+Lik:  -2661.5462394125793
+RMSE:  [ 3.41051233e-01  2.29946576e-01  7.83645728e-02  7.83645686e-02
+  7.83645555e-02 -2.66154624e+03]
+Lik:  -2665.8773597536438
+RMSE:  [ 3.38813127e-01  2.19186848e-01  7.83645593e-02  7.83645633e-02
+  7.83645892e-02 -2.66587736e+03]
+Lik:  -2666.845629343488
+RMSE:  [ 3.47152763e-01  2.28699830e-01  7.83645769e-02  7.83645689e-02
+  7.83645441e-02 -2.66684563e+03]
+Lik:  -2659.681912918478
+RMSE:  [ 3.39858442e-01  2.22856189e-01  7.83646101e-02  7.83646210e-02
+  7.83646345e-02 -2.65968191e+03]
+Lik:  -2662.8908234107666
+RMSE:  [ 3.38578391e-01  2.16412857e-01  7.83645585e-02  7.83645673e-02
+  7.83645825e-02 -2.66289082e+03]
+Lik:  -2661.512626386371
+RMSE:  [ 3.34159608e-01  2.09034517e-01  7.83645900e-02  7.83646037e-02
+  7.83646411e-02 -2.66151263e+03]
+Lik:  -2659.71863195022
+RMSE:  [ 3.37202892e-01  2.15377406e-01  7.83646197e-02  7.83646389e-02
+  7.83646706e-02 -2.65971863e+03]
+Lik:  -2655.856408825523
+RMSE:  [ 3.36738738e-01  2.16428235e-01  7.83645884e-02  7.83646074e-02
+  7.83646532e-02 -2.65585641e+03]
+Lik:  -2658.346542307565
+RMSE:  [ 3.30136705e-01  2.15016394e-01  7.83645892e-02  7.83645951e-02
+  7.83646107e-02 -2.65834654e+03]
+Lik:  -2662.2597381053984
+RMSE:  [ 3.38496846e-01  2.14848750e-01  7.83645940e-02  7.83646038e-02
+  7.83646364e-02 -2.66225974e+03]
+Lik:  -2658.9364719618125
+RMSE:  [ 3.35687508e-01  2.15211603e-01  7.83646205e-02  7.83646281e-02
+  7.83646490e-02 -2.65893647e+03]
+Lik:  -2659.2339309976433
+RMSE:  [ 3.37397596e-01  2.10974579e-01  7.83645947e-02  7.83646073e-02
+  7.83646409e-02 -2.65923393e+03]
+Lik:  -2655.946334909959
+RMSE:  [ 3.33193184e-01  2.10554194e-01  7.83645281e-02  7.83645111e-02
+  7.83645034e-02 -2.65594633e+03]
+Lik:  -2657.754334332294
+RMSE:  [ 3.29367114e-01  2.05330549e-01  7.83646092e-02  7.83646153e-02
+  7.83646349e-02 -2.65775433e+03]
+Lik:  -2654.6887455026645
+RMSE:  [ 3.28126834e-01  2.07286860e-01  7.83645960e-02  7.83646024e-02
+  7.83646221e-02 -2.65468875e+03]
+Lik:  -2658.4375745637003
+RMSE:  [ 3.29964557e-01  2.02191597e-01  7.83645849e-02  7.83645884e-02
+  7.83646092e-02 -2.65843757e+03]
+Lik:  -2650.897301304035
+RMSE:  [ 3.26479225e-01  2.03984394e-01  7.83645825e-02  7.83645879e-02
+  7.83646106e-02 -2.65089730e+03]
+Lik:  -2656.957413445
+RMSE:  [ 3.33926405e-01  2.08058039e-01  7.83645811e-02  7.83645786e-02
+  7.83645841e-02 -2.65695741e+03]
+Lik:  -2650.049319704444
+RMSE:  [ 3.29977908e-01  2.14290462e-01  7.83645691e-02  7.83645647e-02
+  7.83645487e-02 -2.65004932e+03]
+Lik:  -2650.588590508063
+RMSE:  [ 3.24220350e-01  2.03764466e-01  7.83646078e-02  7.83646209e-02
+  7.83646620e-02 -2.65058859e+03]
+Lik:  -2651.1818012502667
+RMSE:  [ 3.23398936e-01  2.03638609e-01  7.83645617e-02  7.83645473e-02
+  7.83645273e-02 -2.65118180e+03]
+Qvar:  [0.03183959 0.02405357 0.02740812]
+Qpar:  [1.85343622e-17 1.79074633e-17 1.70680808e-17]
+#+end_example
+
+** Hurst exponent
+
+#+BEGIN_SRC python :session :results outputa
+
+Codigo dado por chatgpt
+def hurst_exponent_rs(ts, max_lag=100, min_lag=10):
+    ts = np.asarray(ts)
+    N = len(ts)
+    lags = np.arange(min_lag, max_lag)
+
+    rs_vals = []
+
+    for lag in lags:
+        n_segments = N // lag
+        if n_segments == 0:
+            continue
+
+        data = ts[:n_segments * lag].reshape(n_segments, lag)
+        mean = data.mean(axis=1, keepdims=True)
+        dev = data - mean
+        cum_dev = np.cumsum(dev, axis=1)
+        R = np.ptp(cum_dev, axis=1)  # range = max - min
+        S = data.std(axis=1, ddof=1)
+
+        valid = S > 0
+        R_S = R[valid] / S[valid]
+        rs_vals.append(R_S.mean())
+
+    log_lags = np.log(lags[:len(rs_vals)])
+    log_rs = np.log(rs_vals)
+    H, intercept = np.polyfit(log_lags, log_rs, 1)
+
+    # Plot
+    plt.figure(figsize=(8, 4))
+    plt.plot(log_lags, log_rs, 'o', label='Data')
+    plt.plot(log_lags, H * log_lags + intercept, 'r', label=f'Fit: H ≈ {H:.3f}')
+    plt.xlabel('log(Window size)')
+    plt.ylabel('log(R/S)')
+    plt.title('Hurst Exponent Estimation (vectorized R/S method)')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+    return H
+#+END_SRC
+
+
+#+BEGIN_SRC python :session :results output
+def hurst_rs(series, min_window=10, max_window=None, step=1):
+    """
+    Estimate the Hurst exponent using R/S analysis.
+    
+    Parameters:
+    - series: 1D array-like (time series data)
+    - min_window: minimum window size for R/S calculation
+    - max_window: maximum window size (default: len(series)//2)
+    - step: step size between window sizes
+    
+    Returns:
+    - H: Estimated Hurst exponent
+    - (Optional) log_windows, log_rs: For plotting the scaling relationship
+    """
+    series = np.asarray(series)
+    n = len(series)
+    if max_window is None:
+        max_window = n // 2
+    
+    windows = np.arange(min_window, max_window, step)
+    rs_values = []
+    
+    for w in windows:
+        # Split series into m subseries of length w
+        m = n // w
+        subs = series[:m * w].reshape(m, w)
+        
+        # Calculate R/S for each subseries
+        for sub in subs:
+            mean = np.mean(sub)
+            deviations = sub - mean
+            cum_deviations = np.cumsum(deviations)
+            r = np.max(cum_deviations) - np.min(cum_deviations)  # Range
+            s = np.std(sub)  # Standard deviation
+            if s != 0:
+                rs_values.append(r / s)
+        
+        # Alternative: Use average R/S per window
+        # rs_values.append(np.mean([r/s for r,s in zip(ranges, stds)]))
+    
+    # Fit log(R/S) vs log(window size)
+    log_windows = np.log(windows)
+    log_rs = np.log(np.array(rs_values).reshape(len(windows), -1).mean(axis=1)
+    
+    # Linear regression to estimate H
+    H, intercept = np.polyfit(log_windows, log_rs, 1)
+    
+    return H, (log_windows, log_rs)  # Return H and data for plotting
+#+END_SRC
+
+
+Usando la otra formular (Sarmento):
+
+#+BEGIN_SRC python :session :results output
+from scipy.stats import linregress
+
+def estimate_hurst(log_series, max_lag=100):
+    lags = range(1, max_lag + 1)
+    D_tau = [np.mean(np.diff(log_series, lag)**2) for lag in lags]
+    log_lags = np.log(lags)
+    log_D = np.log(D_tau)
+    slope, _, _, _, _ = linregress(log_lags, log_D)
+    return slope / 2
+
+#+END_SRC
+
+** Combinar Hurst,p-value, y half-life
+
+#+BEGIN_SRC python :session :results output
+import numpy as np
+
+def half_life_penalty(hl):
+    """
+    Piecewise penalty for half-life:
+      - 0 penalty if 7 <= hl <= 15
+      - linear from 1 to 0 as hl goes from 3 to 7 (penalty decreases)
+      - linear from 0 to 1 as hl goes from 15 to 21 (penalty increases)
+      - penalty = 1 if hl < 3 or hl > 21
+    """
+    if hl < 3:
+        return 1.0
+    elif 3 <= hl < 7:
+        # penalty decreases from 1 to 0
+        return (7 - hl) / 4
+    elif 7 <= hl <= 15:
+        return 0.0
+    elif 15 < hl <= 21:
+        # penalty increases from 0 to 1
+        return (hl - 15) / 6
+    else:
+        return 1.0
+
+def cointegration_score(adf_pval, hurst, half_life):
+    pval_score = np.clip(adf_pval, 0, 1)
+    hurst_score = np.clip(hurst, 0, 1)
+    hl_score = half_life_penalty(half_life)
+    
+    score = 0.4 * pval_score + 0.3 * hurst_score + 0.3 * hl_score
+    return score
+#+END_SRC
+
+** Kalman filter for alpha and beta
+
+#+BEGIN_SRC python :session :results output
+def kalman_cointegration_with_intercept(x, y, sigma_eps=1.0, sigma_eta_alpha=0.01, sigma_eta_beta=0.01):
+    n = len(x)
+    alpha_hat = np.zeros(n)
+    beta_hat = np.zeros(n)
+    P = np.zeros((2, 2, n))  # Covariance matrix for [alpha, beta]
+    
+    # Initialize
+    alpha_hat[0], beta_hat[0] = 0.0, y[0] / x[0] if x[0] != 0 else 0.0
+    P[:, :, 0] = np.eye(2)  # Initial uncertainty
+    
+    for t in range(1, n):
+        # 1. Prediction step
+        alpha_pred = alpha_hat[t-1]
+        beta_pred = beta_hat[t-1]
+        P_pred = P[:, :, t-1] + np.diag([sigma_eta_alpha**2, sigma_eta_beta**2])
+        
+        # 2. Update step
+        H = np.array([1, x[t]])  # Observation matrix
+        S = H @ P_pred @ H.T + sigma_eps**2  # Residual covariance
+        K = P_pred @ H.T / S  # Kalman gain
+        
+        residual = y[t] - (alpha_pred + beta_pred * x[t])
+        alpha_hat[t] = alpha_pred + K[0] * residual
+        beta_hat[t] = beta_pred + K[1] * residual
+        P[:, :, t] = P_pred - np.outer(K, H) @ P_pred
+    
+    return alpha_hat, beta_hat
+
+#+END_SRC
+
+** Kalman filtering for smoothing
+
+#+BEGIN_SRC python :session :results output
+import numpy as np
+class SimpleSpreadKF:
+    def __init__(self, initial_spread=0, process_noise=0.1, obs_noise=1.0):
+        """
+        Simplified Kalman Filter for spread tracking
+        
+        Args:
+            initial_spread: Starting spread value
+            process_noise: How much the spread can change per step (Q)
+            obs_noise: Measurement noise (R)
+        """
+        self.spread = initial_spread  # State estimate
+        self.cov = 1.0               # Uncertainty of estimate
+        self.Q = process_noise       # Process noise
+        self.R = obs_noise           # Observation noise
+    
+    def update(self, observed_spread):
+        """Update with new spread observation"""
+        # Prediction step
+        pred_spread = self.spread
+        pred_cov = self.cov + self.Q
+        
+        # Update step
+        K = pred_cov / (pred_cov + self.R)  # Kalman Gain
+        self.spread = pred_spread + K * (observed_spread - pred_spread)
+        self.cov = (1 - K) * pred_cov
+        
+        return self.spread
+    
+    def predict(self, steps=1):
+        """Predict future spread (simple mean-reverting prediction)"""
+        return [self.spread * (0.95 ** t) for t in range(1, steps+1)]  # Simple mean reversion
+# 1. Generate synthetic spread data
+np.random.seed(42)
+n = 200
+true_spread = np.zeros(n)
+for t in range(1, n):
+    true_spread[t] = 0.95 * true_spread[t-1] + np.random.randn() * 0.5  # Mean-reverting
+observed_spread = true_spread + np.random.randn(n) * 0.7  # Add noise
+
+# 2. Initialize and run Kalman Filter
+kf = SimpleSpreadKF(process_noise=0.1, obs_noise=0.7**2)
+
+filtered = []
+for obs in observed_spread:
+    filtered.append(kf.update(obs))
+
+# 3. Predict next 5 steps
+predicted = kf.predict(steps=5)
+
+# 4. Plot results
+import matplotlib.pyplot as plt
+plt.figure(figsize=(12,6))
+plt.plot(observed_spread, 'g.', alpha=0.3, label='Observed')
+plt.plot(true_spread, 'b-', lw=1, label='True')
+plt.plot(filtered, 'r-', lw=2, label='Kalman')
+plt.plot(range(n, n+5), predicted, 'ko--', label='Prediction')
+plt.axhline(0, color='k', linestyle='--')
+plt.legend()
+plt.title("Simplified Kalman Filter for Spread Tracking")
+plt.show()
+#+END_SRC
+
+#+RESULTS:
+
+
+
+#+BEGIN_SRC python :session :results output
+def adjust_position(current_spread, predicted_spreads, position_size=100):
+    """
+    Adjust position based on predicted mean reversion
+    
+    Args:
+        current_spread: Latest Kalman Filter estimate
+        predicted_spreads: List of predicted spreads (e.g., next 3 steps)
+        position_size: Base trade size
+    """
+    # If spread is expected to shrink (revert to mean)
+    if all(p < current_spread * 0.95 for p in predicted_spreads):  
+        # Increase short position (expect spread to decrease)
+        return {"action": "increase_short", "size": position_size}
+    
+    elif all(p > current_spread * 1.05 for p in predicted_spreads):
+        # Increase long position (expect spread to increase)
+        return {"action": "increase_long", "size": position_size}
+    
+    else:
+        # No adjustment needed
+        return {"action": "hold"}
+    
+def adjust_position(asset_A, asset_B, kalman_filter):
+    """
+    Recalculate optimal hedge ratio based on latest KF estimate
+    and rebalance positions accordingly
+    """
+    # Get latest beta from cointegration KF (if tracking β separately)
+    optimal_hedge_ratio = kalman_filter.beta_estimate  
+    
+    # Example: Close current positions and reopen with new ratio
+    close_all_positions()
+    enter_pair_trade(
+        long_qty=100, 
+        short_qty=round(100 * optimal_hedge_ratio)  # Dynamic sizing
+    )
+def adjust_position(kalman_filter):
+    """Scale position size inversely with spread uncertainty"""
+    position_size = max(
+        10,  # Minimum size
+        int(100 * (1 / kalman_filter.cov))  # Larger positions when certainty is high
+    
+    return position_size
+#+END_SRC
+
+
+#+BEGIN_SRC python :session :results output
+kf = SimpleSpreadKF()
+
+for observed in live_spread_feed:
+    current = kf.update(observed)
+    
+    # Simple mean-reversion strategy
+    if current > 1.5 * np.sqrt(kf.cov):  # 1.5 standard deviations above mean
+        enter_short_trade()
+    elif current < -1.5 * np.sqrt(kf.cov):
+        enter_long_trade()
+    
+    # Predict mean reversion
+    if all(x < current * 0.9 for x in kf.predict(steps=3)):  
+        # Spread predicted to decrease 10% over next 3 steps
+        adjust_position()
+#+END_SRC
+
+Notar que entrar en corto en realidad no es ir en contra de un asset sino que esta mas relacionado a la cointegration cuando el spread es positivo y supera el umbral y entrar en largo es cuando es negativo.
+
+#+BEGIN_SRC python :session :results output
+    # Trading logic
+    if current_estimate > 2.0:  # Upper threshold
+        enter_short_position()
+    elif current_estimate < -2.0:  # Lower threshold
+        enter_long_position()
+    elif abs(current_estimate) < 0.5:  # Close positions near mean
+        close_positions()
+#+END_SRC
+
+** Sharpe ratio
+
+porcentaje de ganancia anual - la ganancia de referencia minima
+dividido la volatilidad
+
+#+BEGIN_SRC python :session :results output
+
+# Calcular CAGR (Compound Annual Growth Rate)
+cagr = (total_return) ** (1 / num_years) - 1
+
+# Calcular Sharpe Ratio
+risk_free_rate = 0.02
+avg_daily_return = clean_df['strategy_returns'].mean()
+std_daily_return = clean_df['strategy_returns'].std()
+avg_anual_return = avg_daily_return * np.sqrt(252)
+volatility = std_daily_return * np.sqrt(252)
+sharpe = (cagr - risk_free_rate) / volatility
+#+END_SRC
+
+** Performance experimentos servidores
+(Todos los pares capmax
+grial5
+Tiempo:   94.06208109855652
+Hayvy 
+Tiempo:   167.80948615074158
+grial3
+Tiempo:   244.82304191589355
+grial
+Tiempo:   339.277734041214
+huayra
+Tiempo:   334.77312755584717
+yacy
+Tiempo:   125.081516
+
+** Lectura de la hyperoptimizacion
+
+#+BEGIN_SRC python :session :results output
+import numpy as np
+import pickle
+with open('dat/hypero_kf_local.pkl', 'rb') as f:  # 'rb' = read binary
+    dict = pickle.load(f)
+print(dict['capital'].sum())
+print(dict['idx_params'])
+for idx in dict['idx_params']:
+    print(dict['params'][idx])
+with open('dat/hypero_kf_global.pkl', 'rb') as f:  # 'rb' = read binary
+    dict = pickle.load(f)
+print(dict['capital'])
+
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+8239.142655434714
+[7 0 6 2 6 6 2 3 4 6 2 1 5 0 4 6 3 6 4 1 0 5 0 2 2 4 5 0 7 1 5 2 1 4 6 7 7
+ 0 5 7 1 3 4 2 3 7 4 7 0 2]
+
+[7636.27206917 7618.69686615 7614.74133554 7570.59198252 7568.44197339]
+#+end_example
+
+** Lectura del operativo
+Se ha guardado una lista con los pares para cada periodo. De 4 a~nos moviendome en 1.
+A su vez contiene una lista de los best pairs a los 1 a~no, 2a~nos, 3a~nos y 4a~nos.
+
+Entonces la idea es elegir los pares de 2a~nos correr por tres a~nos (para solo dejar el ultimo a~no de testing). Lo mismo para el siguiende set de pares y asi sucesivamente (7 periodos)
+
+** Seleccion por johansen o p-value o combinacion
+
+Optimizo los parametros de todos los pares. Selecciono en el periodo inicial los mejores 20 pares.  Corro por el periodo de testing seleccionado. Y asi sucesivamente.
+
+Como deberia hacer para combinar ambas metricas: Una forma es seleccionar todos los p-values menores a 0.03 o umbral y luego de todos los pares que tengo quedarme con los 20 que mejor performan (en terminos de capital o sharpe).
+
+** Experimentos operativo
+Tiene un problema en recorrer los tiempos. Tiene que ver con los tiempos iniciales.
+
+#+BEGIN_SRC python :session :results output
+iini=0
+for ilast in range(cnf.Ntraining,nt,cnf.Njump):
+    assets_tr=price[:cnf.nmax,iini:ilast]
+    iini+=cnf.Njump
+#+END_SRC
+
+Reduzco la cantidad de parametros y de an~os para disminuir el costo de las simulaciones.
+
+Una vez que estan seleccionados los pares se puede correr el a~no hacia adelante con los parametros optimos.
+
+
+#+BEGIN_SRC python :session :results output
+capital_ajustado[i] = 100  # Ajustas el día i a 100
+
+# Recalculamos los días posteriores proporcionalmente
+for j in range(i + 1, len(capital)):
+    capital_ajustado[j] = capital_ajustado[i] * (capital[j] / capital[i])
+
+#+END_SRC

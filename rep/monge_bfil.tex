@@ -1,0 +1,410 @@
+\documentclass[10pt,hyperref={colorlinks = true,linkcolor = blue}]{beamer}
+%\documentclass[10pt]{beamer}
+% Setup appearance:
+
+\usetheme{default}
+\usefonttheme[onlylarge]{structurebold}
+%\setbeamerfont*{frametitle}{size=\normalsize,series=\bfseries}
+\setbeamerfont*{frametitle}{size=\large,series=\bfseries}
+\setbeamertemplate{navigation symbols}{}
+%\setbeamersize{text margin left=0.5cm, text margin right=0.5cm} 
+\setbeamersize{text margin left=0.5cm, text margin right=0.5cm} 
+
+\usefonttheme[onlymath]{serif}
+
+\setbeamertemplate{blocks}[rounded][shadow=true]
+\newtheorem{formula}{}
+\setbeamercolor{block body formula}{bg=green}
+
+\usepackage{xcolor}
+%\usepackage[colorlinks]{hyperref}
+%\hypersetup{
+%  colorlinks = true,
+%  urlcolor = {blue},
+%    linkbordercolor = {blue}
+%    linkbordercolor = {blue}
+%}
+
+
+% verbatim con small font
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd{\@verbatim}
+  {\verbatim@font}
+  {\verbatim@font\small}
+  {}{}
+\makeatother
+\usepackage{pythonhighlighting}
+
+\usepackage[mathscr]{eucal}
+
+%\def\srci{\begin{mdframed}[hidealllines=true,backgroundcolor=gray!25]\begin{verbatim}}
+%\def\srcf{\end{verbatim}\end{mdframed}}
+\usepackage{verbatim}
+\usepackage{verbatimbox}
+\usepackage{listings}
+\usepackage{color}
+
+% Codigo-------------
+%https://stackoverflow.com/questions/3175105/inserting-code-in-this-latex-document-with-indentation
+\usepackage{listings,newtxtt}
+\lstset{basicstyle=\ttfamily, keywordstyle=\bfseries}
+\definecolor{dkgreen}{rgb}{0,0.6,0}
+\definecolor{gray}{rgb}{0.5,0.5,0.5}
+\definecolor{mauve}{rgb}{0.58,0,0.82}
+
+\lstset{frame=tb,
+  language=Python,
+  aboveskip=3mm,
+  belowskip=3mm,
+  showstringspaces=false,
+  columns=flexible,
+  basicstyle={\footnotesize\ttfamily},
+  numbers=none,
+  numberstyle=\tiny\color{gray},
+  keywordstyle=\color{blue},
+  commentstyle=\color{dkgreen},
+  stringstyle=\color{mauve},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=3
+}
+%\begin{lstlisting}
+%// Hello.java
+%import javax.swing.JApplet;
+%import java.awt.Graphics;
+%
+%public class Hello extends JApplet {
+%    public void paintComponent(Graphics g) {
+%        g.drawString("Hello, world!", 65, 95);
+%    }    
+%}
+%\end{lstlisting}
+%---codigo----------
+
+\newenvironment{wideframe}
+{
+ % not too sure, but may be needed if you have a background image
+ % that should not appear on this kind of frame:
+  \setbeamertemplate{navigation symbols}{}
+%  \setbeamerfont*{frametitle}{size=\large,series=\bfseries}
+
+ % locally set margins to zero: (notice the use of \bgroup ... \egroup
+ % to limit the scope of the geometry restriction
+ % where curly brackets {} aren't possible)
+%\setbeamersize{text margin left=0cm, text margin right=0cm} 
+ \bgroup \newgeometry{left=0cm,right=0cm,top=0.5cm} 
+ \begin{frame}[plain]
+}
+{
+ \end{frame}
+ \egroup
+}
+%\usepackage{empheq} %box equations?
+%\usepackage[many]{tcolorbox}
+
+% Standard packages
+\newcommand*{\boxedcolor}{red}
+\makeatletter
+\renewcommand{\boxed}[1]{\textcolor{\boxedcolor}{%
+    \fbox{\normalcolor\m@th$\displaystyle#1$}}}
+\makeatother
+    
+\usepackage[english]{babel}
+\usepackage[latin1]{inputenc}
+\usepackage{times}
+\usepackage[T1]{fontenc}
+
+\usepackage{tikz}
+\usetikzlibrary{calc,tikzmark,positioning}
+%\newcommand\tikzmark[1]{\tikz[overlay,remember picture] \node (#1) {};}
+\graphicspath{{./fig/}}
+% Setup TikZ
+
+\newcommand\Slash{\char`\\}
+
+% comandos para hacer boxes
+\usepackage{xcolor}
+%\usepackage{lipsum}
+%\newcommand*{\mybox}[1]{\colorbox{gray!30}{\parbox{.98\linewidth}{#1}}}
+\newcommand{\mybox}[1]{\colorbox{gray!30}{\parbox{.98\linewidth}{#1}}}
+\usepackage[framemethod=tikz]{mdframed}
+\def\bxi{\begin{mdframed}[hidealllines=true,backgroundcolor=blue!20]}
+\def\bxf{\end{mdframed}}
+
+\newcommand{\cter}[1]{\mybox{\$\,#1}}
+\newcommand{\ctercorto}[1]{\colorbox{gray!30}{\$\,#1}}
+%\newcommand{\ctermath}[1]{\colorbox{gray!30}{\parbox{.98\linewidth}{$\displaystyle #1$}}}
+\newcommand{\cpyt}[1]{\mybox{$>>>$\,#1}}
+
+\usepackage{tikz}
+\usetikzlibrary{arrows}
+\tikzstyle{block}=[draw opacity=0.7,line width=1.4cm]
+\renewcommand{\baselinestretch}{1.2}
+
+
+%\usepackage{color}
+%\usepackage{arrow}
+%\def\arrowscale{0.011}
+% pseudo code
+\usepackage{algpseudocode,algorithm,algorithmicx}
+\newcommand*\Let[2]{\State #1 $\gets$ #2}
+\renewcommand{\algorithmicrequire}{\textbf{Input:}}
+\renewcommand{\algorithmicensure}{\textbf{Output:}}
+
+\def\rp{\textcolor{red}} %corrections, red pencil
+\def\bp{\textcolor{blue}}
+%algunas funciones definidas
+%\def\mi{\begin{equation}}
+%\def\mf{\end{equation}}
+\def\mi{$$}
+\def\mf{$$}
+\def\med{\overline}
+%\def\mean{\overline}
+\def\reff#1{(\ref{#1})}
+\def\mean{\mathcal{E}}
+\def\mbf{\mathbf}\def\mrm{\mathrm}
+\def\gwdunit{\, \mrm{m \, s^{-1} \, day^{-1}}}
+\def\vunit{\, \mrm{m \, s^{-1}}}
+\def\punit{\, \mrm{hPa}}
+\newcommand{\ud}{\mathrm{d}}
+\newcommand{\dg}{$^\circ$ } % en textos 
+
+% algunas funciones x
+\renewcommand{\v}[1]{\ensuremath{\mathbf{#1}}} % for vectors
+\newcommand{\gv}[1]{\ensuremath{\mbox{\boldmath$ #1 $}}}  % for vectors of Greek letters
+\newcommand{\uv}[1]{\ensuremath{\mathbf{\hat{#1}}}} % for unit vector
+\newcommand{\abs}[1]{\left| #1 \right|} % for absolute value
+\newcommand{\avg}[1]{\left< #1 \right>} % for average
+\let\underdot=\d % rename builtin command \d{} to \underdot{}
+\renewcommand{\d}[2]{\frac{\mrm{d} #1}{\mrm{d} #2}} % for derivatives
+\newcommand{\dd}[2]{\frac{\mrm{d}^2 #1}{\mrm{d} #2^2}} % for double derivatives
+\newcommand{\pd}[2]{\frac{\partial #1}{\partial #2}} % for partial derivatives
+\newcommand{\pdd}[2]{\frac{\partial^2 #1}{\partial #2^2}}  % for double partial derivatives
+\newcommand{\pdc}[3]{\left( \frac{\partial #1}{\partial #2}
+ \right)_{#3}} % for thermodynamic partial derivatives
+\newcommand{\ket}[1]{\left| #1 \right>} % for Dirac bras
+\newcommand{\bra}[1]{\left< #1 \right|} % for Dirac kets
+\newcommand{\braket}[2]{\left< #1 \vphantom{#2} \right|
+ \left. #2 \vphantom{#1} \right>} % for Dirac brackets
+\newcommand{\matrixel}[3]{\left< #1 \vphantom{#2#3} \right|
+ #2 \left| #3 \vphantom{#1#2} \right>} % for Dirac matrix elements
+\newcommand{\grad}[1]{\gv{\nabla} #1} % for gradient
+\let\divsymb=\div % rename builtin command \div to \divsymb
+\renewcommand{\div}[1]{\gv{\nabla} \cdot #1} % for divergence
+\newcommand{\curl}[1]{\gv{\nabla} \times #1} % for curl
+\let\baraccent=\= % rename builtin command \= to \baraccent
+\renewcommand{\=}[1]{\stackrel{#1}{=}} % for putting numbers above =
+
+\def\delequal{\overset{\scriptstyle\Delta}{=}}
+%\def\esp\mathcal{E}
+\newcommand{\expec}[1]{\mathcal{E}\left( #1 \right)}
+\newcommand{\esp}[1]{\mathcal{E}\left(\left. #1 \right|\v y_{1:k}\right)} % esperanza
+\newcommand{\mdl}[1]{\mathcal{M}\left( #1 \right)} % modelo
+\renewcommand{\H}[1]{\mathcal{H}\left( #1 \right)} %observational oper
+\newcommand{\transp}{\top}
+\newcommand{\rkhs}{\mathcal{F}}
+
+\newcommand{\dynm}{\mathcal{M}}
+\newcommand{\obsm}{\mathcal{H}}
+\newcommand{\gaus}{\mathcal{N}}
+\newcommand{\normal}{\mathcal{N}}
+
+
+\def\bs{\boldsymbol}
+\def\ci{\begin{comment}}
+\def\cf{\end{comment}}
+\def\mbf{\mathbf}
+\def\mrm{\mathrm}
+
+% Author, Title, etc.
+\unitlength 1cm
+
+\title[Monge barycenter problem] 
+{%
+  \huge Programaci\'on  \\[3ex]
+\Large
+  Monge barycenter problem}
+  %\normalsize
+  %combining variational data assimilation  with  particle filters
+%}
+
+\author[Pulido]
+{Dr.  Manuel Pulido }
+
+\institute
+{ 
+
+  \small  $^1$ FaCENA, Universidad Nacional del Nordeste, Argentina\\
+  \small  $^2$ CONICET, Argentina\\
+  \small  $^3$ Data Assimilation Research Centre, University of Reading, UK\\
+  \rp{Oficina: 1er Piso. FaCENA. Campus Libertad.}\\
+  \rp{pulido@exa.unne.edu.ar}\\
+    \rp{https://pulidom.github.io/}
+
+}
+\date{}
+
+% The main document
+
+\begin{document}
+
+
+\begin{frame}{Motivacion}
+%\vskip -1cm
+
+  Supongamos un conjunto de variables de entrada, $z$, y una salida $x$.
+
+  La idea seria ver como depende la variable de salida $x$ con las variables de entrada $z$.
+
+  En general este problema consiste en inferir la densidad condicional $p(x|z)$.
+
+A partir de los datos que son un conjunto de $n$ pares, $(x_i,z_i)$, los objetivos son:
+
+\begin{itemize}
+\item Poder evaluar analiticamente (parametricamente?) a $p(x|z)$.
+\item Dado un valor del target $z^*$, generar un conjunto de muestras ${x_j}$ a partir de $p(x|z^*)$
+\end{itemize}
+
+\end{frame}
+
+
+% David Pine. Ajuste de curvas
+% Landau and paez
+% kiusalass_numericalMethodsWithPython.pdf
+% Fangohr. Raices.
+%%%%%%%%%%% FILMINA 1 %%%%%%%%%%%%%%
+
+
+%%%%%%%%%%% FILMINA 1 %%%%%%%%%%%%%%
+\begin{frame}[fragile]{Problema de transporte de Monge del baricentro}
+Buscamos un mapa que elimine de la densidad de $x$ toda la variabilidad explicable por $z$. Esto es lo que hacemos cuando obtenemos $p(x|z)$ dado un $z^*$.
+
+Para encontrar ese mapa pongo dos condiciones
+
+\[\min_{y=T(x,z)} \mathbb E_\pi [ c(x,y) ] \]
+
+sujeto a que $y$ sea independiente de $z$.
+
+En algun sentido decimos a que no quede mas informacion de $x$ en $z$.
+
+
+  \end{frame}
+
+%%%%%%%%%%% FILMINA 1 %%%%%%%%%%%%%%
+ \begin{frame}[fragile]{Densidad condicional: Metodo generativo con OTBP}
+
+   Una vez que encontre el $T$ lo puedo usar para generar muestras de la condicional.
+   
+
+   Dado los datos $\{x_i,z_i\}_{1:n}$ puedo transformar las muestras  $y_i=T(x_i,z_i)$.
+
+   Si tengo un $z^*$ sobre el cual quiero generar muestras de $x$ condicionadas a $z^*$ 
+
+ Antitransformo sobre x a $x^*_i=T^{-1}(y_i,z^*)$ esto me dar $N$ muestras posibles de la variabilidad de $x$ dado $z^*$.
+
+ \end{frame}
+
+ \begin{frame}[fragile]{Problema primal relajado}
+
+   Función Objetivo
+   
+\[\min_{\mu, \pi} \int c(x, y) \pi(x, y) \, dx \, dy \]
+
+Restricciones
+
+\[\int \pi(x, y) \, dy = \rho(x), \quad \int \pi(x, y) \, dx = \mu(y) \]
+
+donde $\mu(y)$ es la distribucion del baricentro y la $\pi$ es la distribucion conjunta que acopla $\rho$ con $\mu$
+
+ \end{frame}
+
+ \begin{frame}[fragile]{Problema de adversarios empirico}
+Dadas las muestras $(x_i, z_i)_{i=1}^N$, proponemos trabajar en un espacios de fucniones $\mathcal F$ para $z$ y  $\mathcal G$ para $y$
+   
+   
+\[\min_{y_i = T(x_i, z_i)} \max_{g, f}  \left\{\frac{1}{n} \sum_{i=1}^{n} \left[ c(x_i, y_i) + \lambda \, g(y_i) f(z_i) \right] \right\}, \]
+
+Restricciones: $\sum_{i=1}^{n} f(z_i) = 0, \quad \|f\| = \|g\| = 1 $
+
+Primeramente necesitamos encontrar las $g$ y $f$ en el espacio de funciones que maximizan la funcion de costo. 
+
+La independencia impone una condicion de ``sin correlaci\'on'' entre la $g$ y la $f$. Si $y$ y $z$ son independientes se tiene que
+
+\[\mathbb E_\pi [g(y) f(z)] = 0 \]
+ \end{frame}
+\begin{frame}[fragile]{Test functions}
+  Vamos a restringir la busqueda  de las funciones \(f\) y \(g\)  a  espacios de dimension finita (\(\mathcal{F}\) y \(\mathcal{G}\)).
+
+ Solo consideramos combinaciones lineales de un conjunto finito de funciones base ("features" o características).
+
+\[
+f(z) = F(z)a = \sum_{j=1}^{m_z} F^j(z) \, a_j, \quad \quad g(y) = G(y)b = \sum_{k=1}^{m_y} G^k(y) \, b_k
+\]
+donde:
+   \(F(z)\) y \(G(y)\) son vectores de funciones base predefinidas (por ejemplo, polinomios, funciones trigonométricas, kernels, etc.).
+   \(a \in \mathbb{R}^{m_z}\) y \(b \in \mathbb{R}^{m_y}\) son los vectores de coeficientes a determinar.
+   \(m_z\) y \(m_y\) son las dimensiones de estos espacios de características.
+
+ \end{frame}
+\begin{frame}[fragile]{Transformo al espacio ortogoanal}
+
+   Se reemplaza $G(y)$ por un operador ortogonal  $Q_y(y)$ que genere el mismo rango efectivo a traves de SVD,
+
+
+\[
+\mathbf{G}_0 = \mathbf{U} \boldsymbol{\Sigma} \mathbf{V}^T
+\]
+
+donde $\v G_0$ es la matriz evaluada en los puntos $y_{0j}$.
+
+La cantidad de dimensiones de $Q_y(y)$ es tal que genere gran parte de la variabilidad con $m_y$ tal que $\sum_k^{m_y} \sigma_k^2 > 0.99$
+
+
+Se define una nueva matriz de transformación \( \mathbf{B}^y \) de tamaño \( m_y \times n_y \) que proyecta los coeficientes originales al espacio reducido y ortogonal:
+
+\[
+\mathbf{B}^y_{jk} = \frac{1}{\sigma_k} \mathbf{V}_{jk}, \quad \text{para } j=1,\dots,m_y; \ k=1,\dots,n_y
+\]
+
+ \end{frame}
+\begin{frame}[fragile]{Problema de adversarios en el  espacio ortogonal}
+
+El nuevo operador de características ortogonales \( Q_y \) se define como:
+
+\[
+Q_y(y) = G(y) \, \mathbf{B}^y
+\]
+Entonces hemos representado al problema de maximizacion de funciones en un espacio finito y a traves de coeficientes que tienen que ser determinados a traves de la maximizacion.
+
+Entonces ahora el problema min-max lo tenemos en $a,b,y_l$,
+
+\[\min_{\{y_i\}} \left\{ \max_{a,b} \sum_{i=1}^{n} c(x_i, y_i) + \lambda \sum_{h=1}^{n_z} \sum_{l=1}^{n_y} \left( \sum_{i=1}^{n} Q_z^{h}(z_i) Q_y^{l}(y_i) \right) a_h b_l, \quad \|a\| = \|b\| = 1 \right\}\]
+
+\end{frame}
+\begin{frame}[fragile]{Determinacion explicita del $a$ y $b$ que maximizan}
+Se puede determinar en forma explicita la maximizacion en esencia $a$ y $b$ se deben alinear con las primeras componentes principales a izquierda y derecha.
+
+Nuevamente entonces hacemos SVD sobre la matriz $\v a^\top \v A \v b = \v a^\top \v Q_z^\top \v Q_y \v b = \v U \gv \Sigma \v V^\top$.
+
+Entonces las funciones son: $ f(z)  = \v Q_z(z) a; \quad g(x) = \v Q_y(y) \v b$. 
+
+
+\end{frame}
+\begin{frame}[fragile]{Optimizacion con flujos de part\'iculas}
+Dados $a$ y $b$ terminamos en un problema de minimizacion dado por
+
+\[\min_{\{y_i\}}  \sum_{i=1}^{n} c(x_i, y_i) + \lambda  \, \|A(y)\| \]
+
+Problema de optimizacion con mapas que mueven {\bf todas} las particulas
+\[y_i^{n+1} = y_i^n - \eta^n \left[ \frac{1}{n} \nabla_y c(x_i, y)\big|_{y_i^n} + \lambda \, a^{\prime} \, \nabla_y A\big|_{y_i^n} b \right] \]
+
+esto lo puedo ver como un descenso de gradientes.
+
+
+
+\[\nabla_y A^{hl}\Big|_{y_i^n} = Q_z^h(z_i) \sum_j \nabla G^j(y)\big|_{y_i} B_{jl}^y\]
+
+\end{frame}
+
+\end{document}
