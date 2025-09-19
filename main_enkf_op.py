@@ -29,60 +29,52 @@ class cnf:
     nmax=None # number of companies to generate the pairs (-1 all, 10 for testing)
     nsel=100# 100 # number of best pairs to select
     linver_betaweight=0
-    industry=['oil']#['beverages']
+    industry=['oil'] # ['beverages']
     fname=f'tmp/all_pair_oil_{mtd}_' # fig filename
+
     shorten=0
     
 # load data
 day,date,price,company,volume = load_ts(sectors=cnf.industry, pathdat=cnf.pathdat)
 
 
-caps = [[] for _ in range(6)]  
+caps = [[] for _ in range(4)]  
 
 
 nt=price.shape[1]
 iini=0
 # select training period
-for ilast in range(cnf.Ntraining+cnf.Njump,nt,cnf.Njump):
+#for ilast in range(cnf.Ntraining+cnf.Njump,nt,cnf.Njump):
+for ilast in range(cnf.Ntraining+cnf.Njump,cnf.Ntraining+2 * cnf.Njump,cnf.Njump):
     print(iini,ilast,ilast-iini)
     
     assets_tr=price[:cnf.nmax,iini:ilast]
 
     iini+=cnf.Njump
-    
- 
+     
     t0 = time()
     res = ar.all_pairs(assets_tr,company[:cnf.nmax],cnf)
     print('Tiempo:  ',time()-t0)
 
-    res2=copy.deepcopy(res)
 
     # Select nsel best pairs
-    idx = np.argsort(res.capital[:,ilast-cnf.Njump-iini])[::-1][:cnf.nsel]
-    res.reorder(idx) # ordeno todo los resultados segun el capital
-    #cap_pred=utils.returns_from(res.capital,cnf.Ntraining)
-
     metrics = co.all_pairs_stats(assets_tr[:,:ilast-cnf.Njump],company,'asset')
     idx = np.argsort(metrics.pvalue)[:cnf.nsel]
-    res2.reorder(idx) # ordeno todo los resultados segun el p-value
-    #cap_pred2=utils.returns_from(res2.capital,cnf.Ntraining)
+    res.reorder(idx) # ordeno todo los resultados segun el p-value
 
     print('retorno',res.retorno.shape)
     caps[0].append(res.retorno[:5,cnf.Ntraining:].mean(0))
     caps[1].append(res.retorno[:10,cnf.Ntraining:].mean(0))
-    caps[2].append(res.retorno[:20,cnf.Ntraining:].mean(0))
-    caps[3].append(res2.retorno[:5,cnf.Ntraining:].mean(0))
-    caps[4].append(res2.retorno[:10,cnf.Ntraining:].mean(0))
-    caps[5].append(res2.retorno[:20,cnf.Ntraining:].mean(0))
-    
+
+for company_pair in res.company:
+    print(company_pair)
+
 rets = np.array([np.concatenate(cap) for cap in caps])
 caps=np.zeros_like(rets)
 caps[:,0]=100
-for i in range(6):
+for i in range(caps.shape[0]):
     caps[i,1:] = caps[i,0] * np.cumprod(1 + rets[i,1:])
 
-for company_pair in res2.company:
-    print(company_pair)
    
 figfile=cnf.fname+'capital.png'
 fig, ax = plt.subplots(1,1,figsize=(7,5))
@@ -98,14 +90,11 @@ fig.savefig(figfile)
 plt.close()
 
 
-quit()
 #for cap in res.capital[:,-1]:
 #    print(cap)
 #
 #for company_pair in res.company:
 #    print(company_pair)
-
-metrics = co.stats(res.assets,'log')
 
 
 figfile=cnf.fname+'capital.png'
@@ -120,13 +109,16 @@ plt.tight_layout()
 fig.savefig(figfile)
 plt.close()
 
-a
+
 gra.plot_zscore(0,res,cnf.fname)
 gra.plot_zscore(1,res,cnf.fname)
 gra.plot_capital_single(0,res,cnf.fname)
 gra.plot_capital_single(1,res,cnf.fname)
 
+quit()
 
+
+metrics = co.stats(res.assets,'log')
 figfile=cnf.fname+f'scatters.png'
 fig, ax = plt.subplots(2,3,figsize=(9,3))
 ax[0,0].scatter(metrics.pvalue,metrics.johansen,s=10)
