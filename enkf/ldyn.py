@@ -9,7 +9,7 @@ import numpy as np
 import numpy.random as rnd
 import sys
 import importlib
-from dyn import M
+from enkf.dyn import M
 #----------------------------------------------------------
 class ldyn(M):
     def __init__( self,dt=0.5, # integration time step

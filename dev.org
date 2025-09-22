@@ -8,13 +8,50 @@
 * Codes
 
 
+** mirando el codigo
+['MTR' 'NAT']
+['NAT' 'MTR']
+['GPRK.K' 'NVGS.K']
+['NVGS.K' 'GPRK.K']
+['UUUU.K' 'CCJ']
+['CCJ' 'UUUU.K']
+['CIVI.K' 'APA.O']
+['APA.O' 'CIVI.K']
+['CIVI.K' 'OXY']
+['TNK' 'MPC']
+['USEG.O' 'WTI']
+
+- volver de los pesos a los compras-ccompras (y luego hacer consistente).
+
+- hay una ventana de beta_win que se podria usar los datos de training para calcular el beta.
+
+- en el arbitrage se deberia solo guardar las salidas para la etapa de prediccion sin los de la beta_win (mas alla que el calculo si requiera de la beta_win).
+
+  
+
+** enkf
+
+como hago la implementacion.
+
+- Dado un par o un par + covariates del par (otros activos).
+
+- Periodo de entrenamiento. Estimo parametros modelo lineal, Q y R.
+  
+- Periodo de prediccion. Pronostico el asset principal dados todos los otros covariates. Y viceversa con respecto al par (pronostico el otro asset del par).
+
+
+Necesito un codigo que entren dos activos (como minimo) y salga el z-score
+
+Para calcular el z-score lo que hago es la diferencia entre el activo predicho (por el otro activo) y el valor real, considerando el spread/volatilidad de la prediccion.
+
 ** con redes deepar
+
 https://pytorch-forecasting.readthedocs.io/en/stable/tutorials/deepar.html
 https://github.com/husnejahan/DeepAR-pytorch
 https://medium.com/@corymaklin/deepar-forecasting-algorithm-6555efa63444
-
 https://github.com/jsyoon0823/TimeGAN
 https://github.com/zzw-zwzhang/TimeGAN-pytorch
+
 ** Tabak
 
 Se puede pensar la metodologia como un expectation maximization? en algun sentido estamos maximizando con respecto a los parametros y despues estamos evaluando las y's?

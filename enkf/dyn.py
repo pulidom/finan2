@@ -23,7 +23,7 @@ import os
 import numpy as np
 import numpy.random as rnd
 import matplotlib.pyplot as plt
-import utils
+import enkf.utils_enkf as utils
 
 #----------------------------------------------------------
 class M: # parent dynamical model class

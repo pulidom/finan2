@@ -29,18 +29,21 @@ def load_ts(assets=None,sectors=['oil'],pathdat='./dat/',
                 j=np.where(company == asset)
                 #print('aca',j)
                 #print('shape: ',price.shape)
-                prices.append(price[j].squeeze())
-                companies.append(company)
+                if np.size(j) == 0:
+                    print('El asset: ',asset,'no esta disponible en',company)
+                    raise SystemExit
+                else:
+                    prices.append(price[j].squeeze())
+                    companies.append(company[j])
 
-            prices=np.array(prices).T
+            #prices=np.array(prices).T
         else:
             prices.append(price)
             companies.append(company)
             
-    prices=np.array(prices)
-    companies = np.array(company)
+    prices=np.array(prices).squeeze()
+    companies = np.array(companies).squeeze()
 
-    prices= prices.squeeze()
     return day, dates, prices,companies,volume
 
 
@@ -84,12 +87,13 @@ def clean_data(day,price,company,volume):
 def check_filename_exists(sector,pathdat,init_date,end_date):
     ''' Chequea si npz-file existe sino llama a cvs2npz
        y lo genera '''
-    full_fname=f'{pathdat}/{sector}_{init_date}_{end_date}_day_vol_closeval.npz'
+    full_fname=f'{pathdat}/{sector}_{init_date}_{end_date}.npz'
     if not os.path.isfile(full_fname):
         # Get the sector
         csv2npz(init_date=init_date,end_date=end_date,
                 folder=pathdat,
                 industry_type=sector,
+                fname=full_fname,
             )
     return full_fname
 
@@ -117,6 +121,7 @@ sector_d = {"airlines":"Passenger Airlines",
 def csv2npz(init_date='2014-01-01',end_date='2024-12-31',
             var_type='close',
             folder='./dat/',
+            fname=None,
             industry_type='oil'):
     ''' Dado un periodo de tiempos y una industria lee el csv y 
        filtra las compa~nias que tienen datos completos en el periodo
@@ -160,12 +165,14 @@ def csv2npz(init_date='2014-01-01',end_date='2024-12-31',
     price = np.array(opens)
     volume = np.array(volumes)
     company = np.array(company)
-    print('Cantidad de empresas: ',len(company))
-    print(price.shape)
+    print('Before cleaning: ',price.shape)
     dt,price,company,volume = clean_data(day,price,company,volume)
 
 
-    np.savez(folder+f"{industry_type}_{init_date.date()}_{end_date.date()}_day_vol_{var_type}val.npz",
+    print('After cleaning: ',price.shape)
+    if fname is None:
+        fname=f'{folder}/{sector}_{init_date}_{end_date}.npz'
+    np.savez(fname,
              day=dt,price=price,volume=volume, company=company, startdate=init_date)
 
 class SyntheticAssets:

@@ -47,7 +47,7 @@ def initialize_functional_spaces(x, z, n_centers=10, bandwidth=0.1):
 def compute_penalty_gradient(y, Qz, Bz, By, sigma, U, Vt):
     """Calcula el gradiente del término de penalización"""
     n = len(y)
-    n_z = Qz.shape[1]
+c    n_z = Qz.shape[1]
     
     # Recalcular G y Qy para los y actuales
     G_current = np.column_stack([y, y**2])

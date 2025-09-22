@@ -29,75 +29,71 @@ class cnf:
     nmax=None # number of companies to generate the pairs (-1 all, 10 for testing)
     nsel=100# 100 # number of best pairs to select
     linver_betaweight=0
-    industry=['oil'] # ['beverages']
-    fname=f'tmp/all_pair_oil_{mtd}_' # fig filename
-
+    industry=['beverages'] #['oil'] # ['beverages']
+    fname=f'tmp/all_pair_coca-pepsi2pairs_{mtd}_' # fig filename
+    #assets=['KGEI.O','CNX']
+    assets=['KO','PEP.O']
+    #assets=None
+    # TRGP.K-GPRE.O
+    # KGEI.O-CNX
+    # KO-PEP
     shorten=0
     
 # load data
-day,date,price,company,volume = load_ts(sectors=cnf.industry, pathdat=cnf.pathdat)
+day,date,price,company,volume = load_ts(sectors=cnf.industry, assets=cnf.assets, 
+                                        pathdat=cnf.pathdat)
 
-
-caps = [[] for _ in range(4)]  
 
 
 nt=price.shape[1]
+print('Nro de tiempos/dias',nt)
+
 iini=0
+res_l=[]
+
 # select training period
-#for ilast in range(cnf.Ntraining+cnf.Njump,nt,cnf.Njump):
-for ilast in range(cnf.Ntraining+cnf.Njump,cnf.Ntraining+2 * cnf.Njump,cnf.Njump):
+for ilast in range(cnf.Ntraining+cnf.Njump,nt,cnf.Njump):
+#for ilast in range(cnf.Ntraining+cnf.Njump,cnf.Ntraining+2 * cnf.Njump,cnf.Njump):
     print(iini,ilast,ilast-iini)
     
     assets_tr=price[:cnf.nmax,iini:ilast]
-
     iini+=cnf.Njump
-     
+
     t0 = time()
-    res = ar.all_pairs(assets_tr,company[:cnf.nmax],cnf)
-    print('Tiempo:  ',time()-t0)
+    res = ar.all_pairs(assets_tr,company,cnf)
+    res_d = utils.obj2dict(res)
+    if iini==0: company_l=res.company
+    del res_d['company']
+    res_l.append(res_d)
 
 
-    # Select nsel best pairs
-    metrics = co.all_pairs_stats(assets_tr[:,:ilast-cnf.Njump],company,'asset')
-    idx = np.argsort(metrics.pvalue)[:cnf.nsel]
-    res.reorder(idx) # ordeno todo los resultados segun el p-value
+res = {
+    key: np.concatenate([res[key][:,cnf.Ntraining:] for res in res_l],axis=1)
+    for key in res_l[0].keys()  # Usa las keys del primer diccionario
+    }
 
-    print('retorno',res.retorno.shape)
-    caps[0].append(res.retorno[:5,cnf.Ntraining:].mean(0))
-    caps[1].append(res.retorno[:10,cnf.Ntraining:].mean(0))
 
-for company_pair in res.company:
-    print(company_pair)
+#res = utils.Results(**res) # mas elegante con objetos! :)
+res = utils.dict2obj(**res) # mas elegante con objetos! :)
+res.capital=np.zeros_like(res.retorno)
+res.capital[:,0]=100
+for i in range(res.retorno.shape[0]):
+    res.capital[i,1:]= res.capital[i,0] * np.cumprod(1 + res.retorno[i,1:])
 
-rets = np.array([np.concatenate(cap) for cap in caps])
-caps=np.zeros_like(rets)
-caps[:,0]=100
-for i in range(caps.shape[0]):
-    caps[i,1:] = caps[i,0] * np.cumprod(1 + rets[i,1:])
 
    
 figfile=cnf.fname+'capital.png'
 fig, ax = plt.subplots(1,1,figsize=(7,5))
-ax.plot(caps[0],label='cap 5')
-ax.plot(caps[1],label='cap 10')
-ax.plot(caps[2],label='cap 20')
-ax.plot(caps[3],'--C0',label='pval 5')
-ax.plot(caps[4],'--C1',label='pval 10')
-ax.plot(caps[5],'--C1',label='pval 20')
+ax.plot(res.capital[0],label='cap 5')
+ax.plot(res.capital[1],label='cap 10')
 ax.set(title='capital testing')
 plt.tight_layout()
 fig.savefig(figfile)
 plt.close()
 
 
-#for cap in res.capital[:,-1]:
-#    print(cap)
-#
-#for company_pair in res.company:
-#    print(company_pair)
 
-
-figfile=cnf.fname+'capital.png'
+figfile=cnf.fname+'capital-largo-corto.png'
 fig, ax = plt.subplots(3,1,figsize=(7,7))
 ax[0].plot(res.largo.mean(-1).T)
 ax[0].set(title='largo')
