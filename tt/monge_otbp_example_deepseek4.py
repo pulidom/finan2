@@ -285,7 +285,7 @@ plt.plot(range(time_steps), estimated_params['alpha'], 'b-',
          label='α estimado', linewidth=2, marker='o', markersize=4)
 plt.plot(range(time_steps), true_params_history['alpha'][:time_steps], 'b--', 
          label='α verdadero', linewidth=2)
-plt.xlabel('Tiempo')
+2plt.xlabel('Tiempo')
 plt.ylabel('Valor del parámetro')
 plt.title('Estimación del parámetro α (tasa de crecimiento presas)')
 plt.legend()

@@ -80,6 +80,8 @@ class o_kwargs1v: # una sola variable observada (el otro asset)
 day,date,price,company,volume = load_ts(sectors=cnf.industry, assets=cnf.assets, 
                                         pathdat=cnf.pathdat)
 
+print(price.shape)
+
 quit()
 y_full = price[:-1,:cnf.Ny]
 Nt = int((day.shape[0]-cnf.Ncy)/cnf.Npred) * cnf.Npred 

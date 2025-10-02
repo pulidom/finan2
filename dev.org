@@ -8,6 +8,45 @@
 * Codes
 
 
+** covarianzas y correlacion
+#+BEGIN_SRC python :session :results output
+import numpy as  np
+import matplotlib.pyplot as plt
+
+# Matriz de covarianza para elipse a 45 grados
+cov_matrix = np.array([[1.0, 0.8],
+                       [0.8, 1.0]])
+
+print("Matriz de covarianza:")
+print(cov_matrix)
+# Diferentes niveles de correlación
+correlaciones = [0.2, 0.5, 0.8, 0.9]
+
+fig, axes = plt.subplots(2, 2, figsize=(10, 8))
+
+for i, rho in enumerate(correlaciones):
+    cov = np.array([[1.0, rho],
+                    [rho, 1.0]])
+    
+    muestras = np.random.multivariate_normal([0, 0], cov, 1000)
+    
+    ax = axes[i//2, i%2]
+    ax.scatter(muestras[:, 0], muestras[:, 1], alpha=0.5)
+    ax.set_title(f'Correlación = {rho}')
+    ax.set_xlabel('X1')
+    ax.set_ylabel('X2')
+    ax.axis('equal')
+    ax.grid(True)
+
+plt.tight_layout()
+plt.savefig('test.png')
+#+END_SRC
+
+#+RESULTS:
+: Matriz de covarianza:
+: [[1.  0.8]
+:  [0.8 1. ]]
+
 ** mirando el codigo
 ['MTR' 'NAT']
 ['NAT' 'MTR']
@@ -28,7 +67,6 @@
 - en el arbitrage se deberia solo guardar las salidas para la etapa de prediccion sin los de la beta_win (mas alla que el calculo si requiera de la beta_win).
 
   
-
 ** enkf
 
 como hago la implementacion.

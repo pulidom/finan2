@@ -47,7 +47,7 @@ day,date,price,company,volume = load_ts(sectors=cnf.industry, assets=cnf.assets,
 
 nt=price.shape[1]
 print('Nro de tiempos/dias',nt)
-
+quit()
 iini=0
 res_l=[]
 
