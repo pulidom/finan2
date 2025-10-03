@@ -28,19 +28,20 @@ class DriveData(Dataset):
                 dat=self.normalize_gauss(dat)
             elif normalize == 'min-max':
                 dat=self.normalize_minmax(dat)
-        
-        self.xs,self.ys, self.covariates = self.chunks(dat,nt_in,nt_out,
-                                      jvar_in,jvar_out,jcovariates)
 
+        #, self.covariates        
+        self.xs,self.ys = self.chunks(dat,nt_in,nt_out,
+                                      jvar_in,jvar_out,jcovariates)
+        # se ponen ambas variables y covariates en el xs
         self.xs = self.normalize_minmax_window(self.xs)
         self.ys = self.normalize_minmax_window(self.ys)
         self.v_scl= self.xs.mean(1)
-        self.xs = 
+        self.xs = self.normalize_minmax_window(self.xs)/self.v_scl[:,None,:]
         print(self.xs.shape)
+        print(self.ys.shape)
         quit()
         self.x_data = tor.from_numpy(np.asarray(self.xs,dtype=np.float32)).to(device)
         self.y_data = tor.from_numpy(np.asarray(self.ys,dtype=np.float32)).to(device)
-        self.c_data = tor.from_numpy(np.asarray(self.covariates,dtype=np.float32)).to(device)
 
         self.lenx=self.xs.shape[0]
         
@@ -52,7 +53,7 @@ class DriveData(Dataset):
         """ Get numpy data """
         return self.xs, self.ys
         
-    def chunkea(var,n=15):
+    def chunkea(selfvar,n=15):
         """ redimensiona la serie de tiempo sin repeticion  """
     
         nchunks=var.shape[0]//n
@@ -66,44 +67,44 @@ class DriveData(Dataset):
 
         dat=sliding_window_view(dat,(nt_in+nt_out,dat.shape[1]))[::nt_in, 0,...]
         #saltos de nt_in para no repetir la entrada
-        x=dat[:,:,jvar_in]
+        x=dat[:,:,jvar_in+jcovariates]
         y=dat[:,:,jvar_out]
-        covariates=dat[:,:,jcovariates]
+        #covariates=dat[:,:,jcovariates]
         
 #        x=dat[:,:nt_in,jvar_in]
 #        y=dat[:,nt_in:,jvar_out]
 #        covariates=dat[:,:,jcovariates]
         
-        return x,y,covariates
+        return x,y#,covariates
     
-    def normalize_gauss(X):
+    def normalize_gauss(self,X):
         ''' Normalize to standard Gaussian distribution '''
         self.X_m = np.mean(X, axis = 0)
         self.X_s = np.std(X, axis = 0)   
         return (X-self.X_m)/(self.X_s)
     
-    def denormalize_gauss(Xnorm):
+    def denormalize_gauss(self,Xnorm):
         ''' Desnormalize Gaussian transformation '''
         return self.X_m + self.X_s * Xnorm
 
-    def normalize_minmax(X):
+    def normalize_minmax(self,X):
         ''' Normalize to 0,1 interval '''
         self.x_mn = np.min(X, axis = 0)
         self.x_mx = np.max(X, axis = 0)   
         return (X-self.x_mn)/(self.x_mx-self.x_mn)
     
-    def denormalize_minmax(Xnorm):
+    def denormalize_minmax(self,Xnorm):
         ''' Desnormalize  '''
         return self.x_mn+ (self.x_mx-self.x_mn) * X
 
-    def normalize_minmax_window(X):
+    def normalize_minmax_window(self,X):
         ''' Normalize to 0,1 interval per window'''
         self.x_mn = np.min(X, axis=1, keepdims=True)  # [nt, 1, nseries]
         self.x_mx = np.max(X, axis=1, keepdims=True)  # [nt, 1, nseries]
         
         return  (X - self.x_mn) / (self.x_mx - self.x_mn)
     
-    def denormalize_minmax_window(Xnorm):
+    def denormalize_minmax_window(self,Xnorm):
         ''' DesNormalize to 0,1 interval per window'''
         return self.x_mn+ (self.x_mx-self.x_mn) * Xnorm
 
