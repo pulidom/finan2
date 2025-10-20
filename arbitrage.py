@@ -91,7 +91,7 @@ def online_zscores(x, y,
                 valid = spread_win[~np.isnan(spread_win)]
                 if len(valid) >= zscore_win // 2:
                     spread_mean[it], spread_std[it] = np.mean(valid), np.std(valid)
-                    zscore[it] = (spread[it] - spread_mean[it]) / (spread_std[it] + 1e-18)
+                    zscore[it] = (spread[it] - spread_mean[it]) / (spread_std[it] + eps)
             
 
     else: # exponential mean, this is purely sequential from start

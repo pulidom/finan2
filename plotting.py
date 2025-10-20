@@ -16,19 +16,26 @@ def vertical_bar(axs,compras,ccompras):
             ax.axvspan(indices[start], indices[end], alpha=0.3, color='red')
     
 def plot_zscore(j,res0,fname):
-    nt=res0.spread.shape[1]
 
-    res = copy.deepcopy(res0) 
-    res.reorder(j) # select the pair
-
+    res = copy.deepcopy(res0)
+    print(res0.spread.shape)
+    
+    if res0.spread.ndim==2:
+        nt=res0.spread.shape[1]# 1-->0???
+        res.reorder(j) # select the pair
+    else:
+        nt=res0.spread.shape[0]# 1-->0???
+        
     figfile=fname+f'zscore{j}.png'
     fig = plt.figure(figsize=(7, 5))
 
     gs = gridspec.GridSpec(2, 2, height_ratios=[1, 1])
 
     ax1 = fig.add_subplot(gs[0, 0])
-    ax1.plot(res.assets[0],label=res.company[0])
-    ax1.plot(res.assets[1],label=res.company[1])
+#    ax1.plot(res.assets[0],label=res.company[0])
+#    ax1.plot(res.assets[1],label=res.company[1])
+    ax1.plot(res.asset_x,label='x')#,label=res.company[0])
+    ax1.plot(res.asset_y,label='y')#,label=res.company[1])
     ax1.legend()
     ax1.set_title('Assets')
 

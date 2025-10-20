@@ -19,11 +19,13 @@ import utils
 
 class cnf:
     pathdat='dat/'
-    tipo='asset' # 'asset', 'return', 'log_return', 'log'
-    mtd = 'on'# 'kf' 'exp' 'on' 'off'
+#    tipo='asset' # 'asset', 'return', 'log_return', 'log'
+#    mtd = 'on'# 'kf' 'exp' 'on' 'off'
+    tipo='log' #'asset' # 'asset', 'return', 'log_return', 'log'
+    mtd = 'ot'# 'kf' 'exp' 'on' 'off'
     Ntraining = 2*252 # length of the training period
     Njump = 84
-    beta_win=121   #21
+    beta_win=8*121   #21
     zscore_win=41 #11
     sigma_co=1.5 # thresold to buy
     sigma_ve=0.1 # thresold to sell
@@ -35,16 +37,17 @@ class cnf:
     shorten=0
     
 # load data
+nt= 10*252
+ts = load_sts(nt=nt,lopt=0,regime_length=252)
 
-nt= 5*252
-ts = load_sts(nt=nt)
+ts=ts[:2]
 
 
 print('Nro de tiempos/dias',nt)
 iini=0
 res_l=[]
 # select training period
-for ilast in range(cnf.beta_win,nt,cnf.Njump):
+for ilast in range(cnf.beta_win+cnf.Njump,nt,cnf.Njump):
 #for ilast in range(cnf.Ntraining+cnf.Njump,cnf.Ntraining+2 * cnf.Njump,cnf.Njump):
     print(iini,ilast,ilast-iini)
     
@@ -53,29 +56,54 @@ for ilast in range(cnf.beta_win,nt,cnf.Njump):
 
     t0 = time()
     res = ar.inversion(x,y,cnf,shorten=cnf.shorten)
+    res['asset_x']=x
+    res['asset_y']=y
 
     res_l.append(res)
 
-    
+
+       
+#ret1 = np.concatenate([res['retorno'][cnf.beta_win:] for res in res_l],axis=0)
 res = {
     key: np.concatenate([res[key][cnf.beta_win:] for res in res_l],axis=0)
     for key in res_l[0].keys()  # Usa las keys del primer diccionario
     }
 
+for key in res_l[0].keys():  # Usa las keys del primer diccionario
+    print(key)
+
 #res = utils.Results(**res) # mas elegante con objetos! :)
 res = utils.dict2obj(**res) # mas elegante con objetos! :)
 
+
 res.capital=np.zeros_like(res.retorno)
 res.capital[0]=100
-for i in range(res.retorno.shape[0]):
-    res.capital[i,1:]= res.capital[i,0] * np.cumprod(1 + res.retorno[i,1:])
+res.capital= res.capital[0] * np.cumprod(1 + res.retorno)
+
+#res.asset_x=x
+#res.asset_y=y
 
 
+t=range(res.asset_x.shape[0])
+   
+figfile=cnf.fname+'scatter.png'
+fig, ax = plt.subplots(1,1,figsize=(7,5))
+scatter = plt.scatter(res.asset_x, res.asset_y, c=t, cmap='viridis', s=10, alpha=0.7)
+plt.colorbar(scatter, label='Time')
+
+#ax.plot(res.asset_x,res.asset_y,'.',label='cap 5')
+#ax.plot(res.capital[0],label='cap 5')
+#ax.plot(res.capital[1],label='cap 10')
+ax.set(title='Scatterplot activos')
+plt.tight_layout()
+fig.savefig(figfile)
+plt.close()
    
 figfile=cnf.fname+'capital.png'
 fig, ax = plt.subplots(1,1,figsize=(7,5))
-ax.plot(res.capital[0],label='cap 5')
-ax.plot(res.capital[1],label='cap 10')
+ax.plot(res.capital,label='cap 5')
+#ax.plot(res.capital[0],label='cap 5')
+#ax.plot(res.capital[1],label='cap 10')
 ax.set(title='capital testing')
 plt.tight_layout()
 fig.savefig(figfile)
@@ -97,9 +125,9 @@ plt.close()
 
 
 gra.plot_zscore(0,res,cnf.fname)
-gra.plot_zscore(1,res,cnf.fname)
+#gra.plot_zscore(1,res,cnf.fname)
 gra.plot_capital_single(0,res,cnf.fname)
-gra.plot_capital_single(1,res,cnf.fname)
+#gra.plot_capital_single(1,res,cnf.fname)
 
 quit()
 

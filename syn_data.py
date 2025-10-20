@@ -1,13 +1,142 @@
 import numpy as np, os
-import matplotlib.pyplot as plt
+
+
+# --------------------------------------------------
+# 1. Función para generar parámetros con cambios de régimen y períodos de no cointegración
+# --------------------------------------------------
+def generate_regime_parameters_with_breaks(T, regime_length=252, 
+                                         break_length=30,
+                                         break_prob=0.6,
+                                         kappa_range=(0.03, 0.20),
+                                         break_kappa_range=(0.001, 0.01),
+                                         sigmaX_range=(20*0.01, 20*0.04),
+                                         sigmaY_range=(20*0.012, 20*0.05),
+                                         rho_range=(-0.9, 0.9),
+                                         theta_shift_prob=0.3,
+                                         theta_shift_range=(-1.0, 1.0),
+                                         seed=None):
+    """
+    Genera parámetros con cambios de régimen y períodos de no cointegración.
+    """
+    if seed is not None:
+        np.random.seed(seed)
+
+    n_regimes = int(np.ceil(T / regime_length))
+
+    sigma_X_t = np.zeros(T)
+    sigma_Y_t = np.zeros(T)
+    kappa_t   = np.zeros(T)
+    theta_t   = np.zeros(T)
+    rho_t     = np.zeros(T)
+    regime_labels = np.zeros(T, dtype=int)
+
+    current_time = 0
+    
+    for r in range(n_regimes):
+        # Régimen normal
+        regime_end = min(current_time + regime_length, T)
+        length = regime_end - current_time
+        t_rel = np.arange(length)
+
+        # Parámetros del régimen normal
+        k_base = np.random.uniform(*kappa_range)
+        k_osc = 0.02 * np.sin(2 * np.pi * t_rel / (length * 2 + 1))
+        kappa_t[current_time:regime_end] = np.clip(k_base + k_osc, 0.001, None)
+
+        sX_base = np.random.uniform(*sigmaX_range)
+        sY_base = np.random.uniform(*sigmaY_range)
+        sX_osc = 0.3 * sX_base * np.sin(2 * np.pi * t_rel / (length + 1))
+        sY_osc = 0.3 * sY_base * np.cos(2 * np.pi * t_rel / (length + 1))
+        sigma_X_t[current_time:regime_end] = np.clip(sX_base + sX_osc, 1e-6, None)
+        sigma_Y_t[current_time:regime_end] = np.clip(sY_base + sY_osc, 1e-6, None)
+
+        if np.random.rand() < theta_shift_prob:
+            theta_base = np.random.uniform(*theta_shift_range)
+        else:
+            theta_base = 0.0
+        theta_t[current_time:regime_end] = theta_base
+
+        rho_base = np.random.uniform(*rho_range)
+        rho_t[current_time:regime_end] = rho_base
+        
+        regime_labels[current_time:regime_end] = 0
+        current_time = regime_end
+
+        # Período de break
+        if current_time < T and np.random.rand() < break_prob and r < n_regimes - 1:
+            break_end = min(current_time + break_length, T)
+            break_duration = break_end - current_time
+            
+            kappa_break = np.random.uniform(*break_kappa_range)
+            kappa_t[current_time:break_end] = kappa_break
+            
+            sigma_X_t[current_time:break_end] = sigma_X_t[current_time-1] * np.random.uniform(1.0, 1.5)
+            sigma_Y_t[current_time:break_end] = sigma_Y_t[current_time-1] * np.random.uniform(1.0, 1.5)
+            
+            theta_t[current_time:break_end] = theta_t[current_time-1] + np.random.uniform(-2.0, 2.0)
+            
+            rho_t[current_time:break_end] = np.random.uniform(*rho_range)
+            
+            regime_labels[current_time:break_end] = 1
+            current_time = break_end
+
+    return sigma_X_t, sigma_Y_t, kappa_t, theta_t, rho_t, regime_labels
+
+# --------------------------------------------------
+# 2. Función para simular con períodos de no cointegración
+# --------------------------------------------------
+def simulate_with_regime_breaks(sigma_X_t, sigma_Y_t, kappa_t, theta_t, rho_t,
+                               regime_labels, mu_X=0.0, mu_Y=0.0,
+                               X0=100.0, Y0=100.0, dt=1.0):
+    """
+    Simula dos activos con períodos de cointegración y no cointegración.
+    """
+    T = len(sigma_X_t)
+    X = np.zeros(T)
+    Y = np.zeros(T)
+    spread_series = np.zeros(T)
+    X[0] = X0
+    Y[0] = Y0
+    spread_series[0] = X0 - Y0
+
+    for t in range(T - 1):
+        # Matriz de correlación variable
+        rho = rho_t[t]
+        cov = np.array([[1, rho],
+                       [rho, 1]])
+        
+        try:
+            L = np.linalg.cholesky(cov)
+            eps = np.random.randn(2)
+            dW = L @ eps
+        except np.linalg.LinAlgError:
+            dW = np.random.randn(2)
+
+        sX = sigma_X_t[t]
+        sY = sigma_Y_t[t]
+        k = kappa_t[t]
+        th = theta_t[t]
+
+        if regime_labels[t] == 1:  # Período de break
+            X[t+1] = X[t] + mu_X * dt + sX * np.sqrt(dt) * dW[0]
+            Y[t+1] = Y[t] + mu_Y * dt + sY * np.sqrt(dt) * dW[1]
+        else:  # Régimen normal
+            X[t+1] = X[t] + mu_X * dt + sX * np.sqrt(dt) * dW[0]
+            spread = X[t] - Y[t] - th
+            Y[t+1] = Y[t] + mu_Y * dt + k * spread * dt + sY * np.sqrt(dt) * dW[1]
+
+        spread_series[t+1] = X[t+1] - Y[t+1]
+
+    return np.vstack([X, Y])#, spread_series
+
 
 # --------------------------------------------------
 # 1. Función para generar volatilidades, kappa y theta
 # --------------------------------------------------
 def generate_regime_parameters(T, regime_length=252, 
                                kappa_range=(0.03, 0.20),
-                               sigmaX_range=(0.01, 0.04),
-                               sigmaY_range=(0.012, 0.05),
+                               sigmaX_range=(20*0.01,20* 0.04),
+                               sigmaY_range=(20*0.012,20* 0.05),
                                theta_shift_prob=0.3,
                                theta_shift_range=(-1.0, 1.0),
                                seed=None):
@@ -210,18 +339,31 @@ def simulate_with_heavy_t(
 
     return  np.vstack([X, Y, Z])
 
-def load_sts(nt=5*252,lopt=0):
+def load_sts(nt=5*252,lopt=0,regime_length=None):
     '''  lopt=0 two cointegrated assets
          lopt=1 a third covariate variable
          lopt=2 a third covariate variable and non-gaussian heavy tail stats
     '''
-    sigma_X_t, sigma_Y_t, kappa_t, theta_t = generate_regime_parameters(nt, regime_length=nt)
+    if regime_length==None: regime_length= nt
+    sigma_X_t, sigma_Y_t, kappa_t, theta_t = generate_regime_parameters(nt, regime_length, seed=42)
     if lopt==0:
         ts = simulate_cointegrated_assets(sigma_X_t, sigma_Y_t, kappa_t, theta_t)
     elif lopt==1:
         ts = simulate_cointegrated_with_aux(sigma_X_t, sigma_Y_t, kappa_t, theta_t)
     elif lopt==2:
         ts = simulate_with_heavy_t(sigma_X_t, sigma_Y_t, kappa_t, theta_t)
+
+    elif lopt==3:
+        
+        sigma_X_t, sigma_Y_t, kappa_t, theta_t, rho_t, regime_labels = generate_regime_parameters_with_breaks(
+            nt, regime_length=regime_length, break_length=30, seed=42
+        )
+    
+    # Simular
+        ts = simulate_with_regime_breaks(
+        sigma_X_t, sigma_Y_t, kappa_t, theta_t, rho_t, regime_labels
+        )
+        
     return ts
 
 # --------------------------------------------------
