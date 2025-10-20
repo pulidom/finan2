@@ -10,6 +10,7 @@ import utils
 from utils import (rolling, erolling, crolling,
                    rolling_meanvar, exp_mean, mean_function, meanvar,
                    lin_reg,lin_reg_alpha0)
+import optimal_transport as ot
 
 
 def calculate_spread( x, y,window):
@@ -75,6 +76,23 @@ def online_zscores(x, y,
                 spread_win = spread[it-zscore_win+1:it+1] # incluye el it
                 spread_mean[it],spread_std[it] = mean_fn(spread_win)
                 zscore[it] = (spread[it] - spread_mean[it]) / spread_std[it]
+    elif mtd=='ot':
+        for it in range(beta_win, len(x)):
+            # Ventana de entrenamiento OT
+            x_win = x[it - beta_win:it]
+            y_win = y[it - beta_win:it]
+
+            cached_y, *_ = ot.ot_barycenter_solver(x_win, y_win, n_iter=100)
+            cached_Z_ot = y_win.copy()
+            spread[it] = ot.interpolate_barycenter(y[it], cached_Z_ot, cached_y)
+            
+            if it >= zscore_win and not np.isnan(spread[it]):
+                spread_win = spread[it - zscore_win + 1:it + 1]
+                valid = spread_win[~np.isnan(spread_win)]
+                if len(valid) >= zscore_win // 2:
+                    spread_mean[it], spread_std[it] = np.mean(valid), np.std(valid)
+                    zscore[it] = (spread[it] - spread_mean[it]) / (spread_std[it] + 1e-18)
+            
 
     else: # exponential mean, this is purely sequential from start
         for it in range(len(x)):
