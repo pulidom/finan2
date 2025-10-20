@@ -10,6 +10,9 @@ import pandas as pd
 import datetime
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+import yfinance as yf
+
+
 
 def load_ts(assets=None,sector='oil',pathdat='./dat/',
              init_date='2014-01-01',end_date='2024-12-31'):
@@ -251,3 +254,94 @@ def load_by_tickers(tickers, pathdat='./dat/'):
     companies = df_pivot.columns.values
     
     return day, dates, prices.T, companies, volumes.T
+
+def yahoo_download(tickers, start_date, end_date):
+    """
+    Descarga datos financieros de Yahoo Finance y calcula retornos
+    
+    Args:
+        tickers: lista de símbolos de acciones/ETFs
+        start_date: fecha de inicio (YYYY-MM-DD)
+        end_date: fecha de fin (YYYY-MM-DD)
+        return_type: tipo de retorno a calcular ('price', 'log', 'return')
+            - 'price': precios ajustados sin transformación
+            - 'log': retornos logarítmicos
+            - 'return': retornos simples (porcentuales)
+    
+    Returns:
+        returns_df: DataFrame con retornos/precios según return_type
+        prices_df: DataFrame con precios ajustados
+        volumes_df: DataFrame con volúmenes operados en dólares
+    """
+    print(f"Periodo: {start_date} a {end_date}")
+
+    
+    data = yf.download(tickers, start=start_date, end=end_date,
+                        progress=False,auto_adjust=True)
+    
+    if len(tickers) == 1:
+        # Para un solo ticker, yfinance puede devolver diferentes estructuras
+        if 'Close' in data.columns:
+            prices_df = data['Close'].to_frame()
+            prices_df.columns = tickers
+        else:
+            # Si no hay columna 'Adj Close', usar la primera columna disponible
+            prices_df = data.iloc[:, 0].to_frame()
+            prices_df.columns = tickers
+            #print("Warning: 'Adj Close' no encontrado, usando primera columna disponible")
+        
+        # Obtener volúmenes
+        if 'Volume' in data.columns:
+            volumes_df = data['Volume'].to_frame()
+            volumes_df.columns = tickers
+        else:
+            volumes_df = pd.DataFrame(index=data.index, columns=tickers)
+            print("Warning: 'Volume' no encontrado")
+    else:
+        # Para múltiples tickers
+        import pandas as pd
+        if isinstance(data.columns, pd.MultiIndex):
+            
+            prices_df = data['Close']
+            if 'Volume' in data.columns.get_level_values(0):
+                volumes_df = data['Volume']
+            else:
+                volumes_df = pd.DataFrame(index=data.index, columns=tickers)
+                print("Warning: 'Volume' no encontrado")
+        else:
+            # Estructura simple de columnas
+            prices_df = data
+            volumes_df = pd.DataFrame(index=data.index, columns=tickers)
+            print("Warning: Estructura de datos simple, volúmenes no disponibles")
+    
+    # Verificar que tenemos al menos algunos datos válidos
+    valid_tickers = []
+    for ticker in tickers:
+        if ticker in prices_df.columns:
+            if not prices_df[ticker].isna().all():
+                valid_tickers.append(ticker)
+    
+    if not valid_tickers:
+        raise ValueError("No se encontraron datos válidos para ningún ticker")
+    
+    # Filtrar solo los tickers válidos
+    prices_df = prices_df[valid_tickers]
+    
+    # Filtrar volúmenes para los tickers válidos
+    volumes_df = volumes_df[valid_tickers] if all(ticker in volumes_df.columns for ticker in valid_tickers) else pd.DataFrame(index=prices_df.index, columns=valid_tickers)
+    
+    # Calcular volúmenes en dólares (Volume * Precio de cierre ajustado)
+    dollar_volumes_df = volumes_df.copy()
+    for ticker in valid_tickers:
+        if ticker in volumes_df.columns and ticker in prices_df.columns:
+            dollar_volumes_df[ticker] = volumes_df[ticker] * prices_df[ticker]
+        else:
+            print(f"Warning: No se pudo calcular volumen en dólares para {ticker}")
+    
+    day   = np.arange(1,len(prices_df))
+    date  = pd.date_range(start=start_date, end=end_date, freq="D").to_numpy()
+    price = prices_df.to_numpy()
+    company= np.array([tickers]).T[:,0]
+    #return returns_df, prices_df, dollar_volumes_df
+    return day,date,price.T,company,dollar_volumes_df.to_numpy().T
+    

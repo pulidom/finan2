@@ -6,8 +6,9 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import copy
 from time import time
+import datetime
 
-from read_data import load_ts,load_by_tickers
+from read_data import load_ts,load_by_tickers,yahoo_download
 
 import arbitrage as ar
 import plotting as gra
@@ -25,25 +26,25 @@ plt.rc('font', family='serif')
 #capital: 110 -> 65
 #machinery: 98 -> 76
 #industrias = ["automobiles"]
-industrias = ['broadline']
+industrias = ['args']
 for industria in industrias:
     
         
-    print(f'arranca {industria}')
+    #print(f'arranca {industria}')
     class cnf:
         pathdat='dat/'
-        tipo='asset' # 'asset', 'return', 'log_return', 'log'
-        mtd = 'on'# 'kf' 'exp' 'on' 'off'
+        tipo='log' # 'asset', 'return', 'log_return', 'log'
+        mtd = 'ot'# 'kf' 'exp' 'on' 'off'
         #mtd='kf'
-        Ntraining = 131 # length of the training period
+        Ntraining = 252*4 # length of the training period
         Njump = 70
-        beta_win=121   #21
-        zscore_win=41 #11
+        beta_win=252*4   #21
+        zscore_win=252*3 #11
         sigma_co=1.5 # thresold to buy
         sigma_ve=0.2 # thresold to sell
         nmax=-1 # number of companies to generate the pairs (-1 all, 10 for testing)
         nsel=10# 100 # number of best pairs to select
-        fname=f'tmp/26_08/' # fig filename
+        fname=f'tmp/prueba_ot/' # fig filename
         linver_betaweight=0
         industry=industria
 
@@ -55,12 +56,26 @@ for industria in industrias:
     os.makedirs(cnf.fname, exist_ok=True)    
     os.makedirs(cnf.fname+industria+'/', exist_ok=True)    
 
-    day,date,price,company,volume = load_ts(sector=cnf.industry, pathdat=cnf.pathdat)
-
+    #day,date,price,company,volume = load_ts(sector=cnf.industry, pathdat=cnf.pathdat)
+    #day,date,price,company,volume = yahoo_download(['AR','EQT','CNX','NAT','MTR'],datetime.date(2018,1,1),datetime.date(2022,1,1))
+    day,date,price,company,volume = yahoo_download(['YPFD.BA',
+                                                    'GGAL.BA',
+                                                    'PAMP.BA',
+                                                    'TGSU2.BA',
+                                                    #'BMA-D.BA',
+                                                    'TECO2.BA',
+                                                    #'BBAR.BA',
+                                                    #'TXAR.BA',
+                                                    #'CEPU',
+                                                    #'BYMA.BA',
+                                                    #'LOMA',
+                                                    #'EDN.BA'
+                                                    ],
+                                                    datetime.date(2015,1,1),datetime.date(2025,1,1))
     caps = []   # Para guardar resultados de las 6 estrategias
     nt=price.shape[1]
     
-
+    print('descarga completada')
     #PARA GUARDAR LOS PESOS JUNTO CON LAS SEÑALES
     signal_pval = np.zeros((len(company), nt))
     signal_pval_volat = np.zeros((len(company), nt))
@@ -71,12 +86,12 @@ for industria in industrias:
 
     estrategias = [
     {"nombre": "pval",        "criterio": "pvalue",    "peso": None,         "signal": signal_pval      , 'line':'-'  ,'color':'tab:blue','al':1},
-    {"nombre": "pval",        "criterio": "pvalue",    "peso": None,         "signal": signal_pval      , 'line':'-'  ,'color':'red','al':1},
-    #{"nombre": "pval_volum",  "criterio": "pvalue",    "peso": "volume",     "signal": signal_pval_volum, 'line':'--' ,'color':'tab:blue','al':0.7},
-    #{"nombre": "pval_volat",  "criterio": "pvalue",    "peso": "volatility", "signal": signal_pval_volat, 'line':':'  ,'color':'tab:blue','al':0.7},
-    #{"nombre": "hf",          "criterio": "half_life", "peso": None,         "signal": signal_hf        , 'line':'-'  ,'color':'tab:orange','al':1},
-    #{"nombre": "hf_volum",    "criterio": "half_life", "peso": "volume",     "signal": signal_hf_volum  , 'line':'--' ,'color':'tab:orange','al':0.7},
-    #{"nombre": "hf_volat",    "criterio": "half_life", "peso": "volatility", "signal": signal_hf_volat  , 'line':':'  ,'color':'tab:orange','al':0.7},
+    #{"nombre": "pval",        "criterio": "pvalue",    "peso": None,         "signal": signal_pval      , 'line':'-'  ,'color':'red','al':1},
+    {"nombre": "pval_volum",  "criterio": "pvalue",    "peso": "volume",     "signal": signal_pval_volum, 'line':'--' ,'color':'tab:blue','al':0.7},
+    {"nombre": "pval_volat",  "criterio": "pvalue",    "peso": "volatility", "signal": signal_pval_volat, 'line':':'  ,'color':'tab:blue','al':0.7},
+    {"nombre": "hf",          "criterio": "half_life", "peso": None,         "signal": signal_hf        , 'line':'-'  ,'color':'tab:orange','al':1},
+    {"nombre": "hf_volum",    "criterio": "half_life", "peso": "volume",     "signal": signal_hf_volum  , 'line':'--' ,'color':'tab:orange','al':0.7},
+    {"nombre": "hf_volat",    "criterio": "half_life", "peso": "volatility", "signal": signal_hf_volat  , 'line':':'  ,'color':'tab:orange','al':0.7},
     ]
 
     # Actualizar señales
@@ -88,16 +103,16 @@ for industria in industrias:
         for ilast in range(cnf.Ntraining+cnf.Njump,nt,cnf.Njump):
             #print(ilast)
 
-            assets_tr = price[:cnf.nmax,iini:ilast]
-            volume_tr = volume[:cnf.nmax, iini:ilast]
+            assets_tr = price[:,iini:ilast]
+            volume_tr = volume[:, iini:ilast]
             mean_vol  = np.mean(volume_tr, axis=1)  # promedio por activo    
         
             #t0 = time()
-            res_ = ar.all_pairs(assets_tr,company[:cnf.nmax],cnf,)
+            res_ = ar.all_pairs(assets_tr,company,cnf,)
             res = copy.deepcopy(res_)
 
             ### Selección de pares según P-val
-            metrics = co.all_pairs_stats(assets_tr[:,:-cnf.Njump],res.company[:cnf.nmax],'asset')
+            metrics = co.all_pairs_stats(assets_tr[:,:-cnf.Njump],res.company,'asset')
             
             #print(len(metrics.pvalue))
             #exit()
@@ -117,18 +132,18 @@ for industria in industrias:
             elif strat["peso"] == "volatility":
                 res = ar.given_pairs_weighted(assets_tr, company, cnf, res, volume_tr, ar.volatility_weight)
 
-            for p in range(len(res.company)):
-                com0, com1 = res.company[p, 0], res.company[p, 1]
-                pos0, pos1 = np.where(company == com0)[0][0], np.where(company == com1)[0][0]
-                compras, ccompras = res.compras[p,-cnf.Njump:], res.ccompras[p,-cnf.Njump:]
+            # for p in range(len(res.company)):
+            #     com0, com1 = res.company[p, 0], res.company[p, 1]
+            #     pos0, pos1 = np.where(company == com0)[0][0], np.where(company == com1)[0][0]
+            #     compras, ccompras = res.compras[p,-cnf.Njump:], res.ccompras[p,-cnf.Njump:]
 
-                if strat["peso"]:
-                    peso_par = res.pesos_normalizados[p,-cnf.Njump:]
-                    strat["signal"][pos0, ilast-cnf.Njump:ilast] += (compras.astype(int) - ccompras.astype(int)) * np.abs(peso_par)
-                    strat["signal"][pos1, ilast-cnf.Njump:ilast] += (ccompras.astype(int) - compras.astype(int)) * np.abs(peso_par)
-                else:
-                    strat["signal"][pos0, ilast-cnf.Njump:ilast] += compras.astype(int) - ccompras.astype(int)
-                    strat["signal"][pos1, ilast-cnf.Njump:ilast] += ccompras.astype(int) - compras.astype(int)
+            #     if strat["peso"]:
+            #         peso_par = res.pesos_normalizados[p,-cnf.Njump:]
+            #         strat["signal"][pos0, ilast-cnf.Njump:ilast] += (compras.astype(int) - ccompras.astype(int)) * np.abs(peso_par)
+            #         strat["signal"][pos1, ilast-cnf.Njump:ilast] += (ccompras.astype(int) - compras.astype(int)) * np.abs(peso_par)
+            #     else:
+            #         strat["signal"][pos0, ilast-cnf.Njump:ilast] += compras.astype(int) - ccompras.astype(int)
+            #         strat["signal"][pos1, ilast-cnf.Njump:ilast] += ccompras.astype(int) - compras.astype(int)
 
             # Guardar retornos
             if strat["peso"]:
@@ -141,9 +156,9 @@ for industria in industrias:
     ###aca guardo los pesos
 
     # Pval sin pesos
-        df = pd.DataFrame(strat['signal'].T, columns=company, index=date)
-        df.index.name = "date"
-        df.to_csv(f"{cnf.fname+industria}/{strat['nombre']}.csv")
+        #df = pd.DataFrame(strat['signal'].T, columns=company, index=date)
+        #df.index.name = "date"
+        #df.to_csv(f"{cnf.fname+industria}/{strat['nombre']}.csv")
 
         rets = np.concatenate(np.array(caps))
         #print(caps.shape)
@@ -152,10 +167,11 @@ for industria in industrias:
 
         capitales[1:] = capitales[0] * np.cumprod(1 + rets[1:])
 
-        print('capitales 0 ',capitales[0].shape)
-        print(capitales.shape)
+        #print('capitales 0 ',capitales[0].shape)
+        #print(capitales.shape)
         ax.plot(capitales, linestyle=strat['line'], color=strat['color']  ,label=strat['nombre'], alpha = strat['al'])
-        strat['signal']=0
+        fig.savefig(figfile)
+        #strat['signal']=0
 
     ax.set(title=f'Capitales en {cnf.industry}')
     ax.legend()

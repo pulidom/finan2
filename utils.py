@@ -40,6 +40,7 @@ def select_variables(x,y,tipo='asset'):
 class Results:
     ''' Transform a list of dictionaries in a class of np.arrays '''
     def __init__(self, list_of_dicts):
+        #print(list_of_dicts)
         keys = list_of_dicts[0].keys()
         for key in keys:
             setattr(self, key, np.array([d[key] for d in list_of_dicts]) )

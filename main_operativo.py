@@ -10,16 +10,17 @@ import matplotlib.gridspec as gridspec
 import copy
 from time import time
 
-from read_data import load_ts
+from read_data import load_ts, yahoo_download
 import arbitrage as ar
 import plotting as gra
 import cointegration as co
 import utils
+import datetime
 
 class cnf:
     pathdat='dat/'
-    tipo='asset' # 'asset', 'return', 'log_return', 'log'
-    mtd = 'on'# 'kf' 'exp' 'on' 'off'
+    tipo='log' # 'asset', 'return', 'log_return', 'log'
+    mtd = 'ot'# 'kf' 'exp' 'on' 'off'
     Ntraining = 2*252 # length of the training period
     Njump = 84
     beta_win=121   #21
@@ -31,12 +32,26 @@ class cnf:
     fname=f'tmp/all_pair_{mtd}_' # fig filename
     linver_betaweight=0
     #industry='oil'
-    industry='beverages'
+    industry='oil'
     shorten=0
     
 # load data
-day,date,price,company,volume = load_ts(sector=cnf.industry, pathdat=cnf.pathdat)
+day,date,price,company,volume = yahoo_download(['AR','EQT','CNX','NAT','MTR'],datetime.date(2018,1,1),datetime.date(2022,1,1))
 
+
+# print(day.shape)
+# print(date.shape)
+# print(price.shape)
+# print(company.shape)
+# print(volume.shape)
+
+#day,date,price,company,volume = load_ts(sector=cnf.industry, pathdat=cnf.pathdat)
+
+# print(day.shape)
+# print(date.shape)
+# print(price.shape)
+# print(company.shape)
+# print(volume.shape)
 
 caps = [[] for _ in range(6)]  
 
@@ -53,7 +68,8 @@ for ilast in range(cnf.Ntraining+cnf.Njump,nt,cnf.Njump):
     
  
     t0 = time()
-    res = ar.all_pairs(assets_tr,company[:cnf.nmax],cnf)
+    print('la compania',company)
+    res = ar.all_pairs(assets_tr,company,cnf)
     print('Tiempo:  ',time()-t0)
 
     res2=copy.deepcopy(res)
