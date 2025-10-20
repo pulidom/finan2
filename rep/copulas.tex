@@ -1,0 +1,176 @@
+\documentclass[12pt, a4paper]{myarticle}
+\usepackage[spanish]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+\title{Aplicación de Cópulas al Arbitraje Estadístico con Pares}
+\author{Análisis Cuantitativo}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section{Introducción}
+El arbitraje estadístico con pares (\textit{pairs trading}) tradicional se basa en modelos de cointegración o regresión. Las cópulas ofrecen un enfoque más sofisticado al modelar la \textbf{estructura de dependencia completa} entre dos activos, capturando relaciones no lineales y dependencias de cola que los métodos tradicionales pasan por alto.
+
+\section{Marco Teórico}
+
+\subsection{Definición de Cópula}
+Una cópula \( C \) es una función de distribución multivariada con marginales uniformes en el intervalo \([0,1]\). Según el \textbf{Teorema de Sklar}, para dos variables aleatorias \( X \) y \( Y \) con funciones de distribución conjunta \( F_{XY} \) y marginales \( F_X \) y \( F_Y \), existe una cópula \( C \) tal que:
+\[
+F_{XY}(x,y) = C(F_X(x), F_Y(y))
+\]
+La densidad de la cópula se define como:
+\[
+c(u,v) = \frac{\partial^2 C(u,v)}{\partial u \partial v}
+\]
+donde \( u = F_X(x) \) y \( v = F_Y(y) \).
+
+\section{Proceso de Implementación}
+
+\subsection{Paso 1: Preprocesamiento de Datos}
+
+\subsubsection{Transformación de Precios}
+Para un par de activos \( A \) y \( B \), calculamos los rendimientos logarítmicos:
+\[
+r_{A,t} = \ln(P_{A,t}) - \ln(P_{A,t-1})
+\]
+\[
+r_{B,t} = \ln(P_{B,t}) - \ln(P_{B,t-1})
+\]
+
+\section{Transformación a Uniformes}
+
+\subsection{Marginales Empíricas}
+
+Para cada activo, estimamos la distribución acumulada marginal de rendimientos:
+
+\[
+\hat{F}_A(r) = \frac{1}{T} \sum_{t=1}^T \mathbb{I}_{\{r_{A,t} \leq r\}}
+\]
+
+\textbf{Ejemplo:} Si tenemos 100 observaciones y 30 de ellas son \(\leq 0.02\), entonces:
+\[
+\hat{F}_A(0.02) = \frac{30}{100} = 0.30
+\]
+\subsection{Transformación a Uniformes}
+
+Aplicamos la transformada integral de probabilidad:
+
+\[
+u_t = \hat{F}_A(r_{A,t}), \quad v_t = \hat{F}_B(r_{B,t})
+\]
+
+Donde:
+\begin{itemize}
+    \item \( r_{A,t}, r_{B,t} \): \textbf{Rendimientos observados} (datos originales)
+    \item \( \hat{F}_A, \hat{F}_B \): \textbf{Funciones de distribución acumulada} empíricas o paramétricas
+    \item \( u_t, v_t \): \textbf{Variables uniformes} en [0,1] resultantes de la transformación
+\end{itemize}
+\subsection{Paso 2: Modelado con Cópulas}
+
+\subsubsection{Familias de Cópulas Common}
+
+\begin{itemize}
+    \item \textbf{Gaussiana}: 
+    \[
+    C_{\rho}(u,v) = \Phi_{\rho}(\Phi^{-1}(u), \Phi^{-1}(v))
+    \]
+    
+    \item \textbf{\textit{t} de Student}:
+    \[
+    C_{\rho,\nu}(u,v) = t_{\rho,\nu}(t_{\nu}^{-1}(u), t_{\nu}^{-1}(v))
+    \]
+    
+    \item \textbf{Clayton}:
+    \[
+    C_{\theta}(u,v) = \left( \max\{u^{-\theta} + v^{-\theta} - 1, 0\} \right)^{-1/\theta}
+    \]
+    
+    \item \textbf{Gumbel}:
+    \[
+    C_{\theta}(u,v) = \exp\left( -\left( (-\ln u)^{\theta} + (-\ln v)^{\theta} \right)^{1/\theta} \right)
+    \]
+\end{itemize}
+
+\subsubsection{Estimación de Parámetros}
+Los parámetros se estiman mediante máxima verosimilitud:
+\[
+\hat{\theta} = \arg\max_{\theta} \sum_{t=1}^{T} \ln c(u_t, v_t; \theta)
+\]
+
+\subsection{Paso 3: Señales de Trading}
+
+\subsubsection{Probabilidades Condicionales}
+Definimos las señales usando derivadas de la cópula:
+
+\begin{align*}
+\text{Probabilidad condicional para venta:} & \quad P(V > v | U = u) = 1 - \frac{\partial C(u,v)}{\partial u} \\
+\text{Probabilidad condicional para compra:} & \quad P(V \leq v | U = u) = \frac{\partial C(u,v)}{\partial u}
+\end{align*}
+
+\subsubsection{Reglas de Trading}
+
+\begin{itemize}
+    \item \textbf{Señal VENTA} (Vender A/Comprar B):
+    \[
+    P(V > v | U = u) < \tau_{\text{low}}
+    \]
+    \item \textbf{Señal COMPRA} (Comprar A/Vender B):
+    \[
+    P(V \leq v | U = u) < \tau_{\text{low}}
+    \]
+\end{itemize}
+donde \( \tau_{\text{low}} \) es un umbral típicamente entre 0.05 y 0.10.
+
+\subsection{Paso 4: Gestión de Riesgos}
+
+\subsubsection{Salida por Take-Profit}
+\[
+P(V > v | U = u) \approx 0.5 \quad \text{o} \quad P(V \leq v | U = u) \approx 0.5
+\]
+
+\subsubsection{Salida por Stop-Loss}
+\begin{itemize}
+    \item \textbf{Basado en probabilidad}: La probabilidad condicional se vuelve más extrema
+    \item \textbf{Basado en precio}: Pérdida máxima definida sobre el spread
+\end{itemize}
+
+\section{Ejemplo Numérico}
+
+\subsection{Escenario}
+\begin{itemize}
+    \item Par: Acción A vs. Acción B
+    \item Cópula: \textit{t}-Student con \( \rho = 0.8 \), \( \nu = 5 \)
+    \item Umbral: \( \tau_{\text{low}} = 0.05 \)
+\end{itemize}
+
+\subsection{Señal de Trading}
+\begin{align*}
+u_t &= 0.98 \quad (\text{A tiene rendimiento muy alto}) \\
+v_t &= 0.60 \quad (\text{B tiene rendimiento moderado}) \\
+P(V > 0.60 | U = 0.98) &= 0.03 < 0.05
+\end{align*}
+\textbf{Decisión}: Vender A/Comprar B
+
+\section{Consideraciones Prácticas}
+
+\subsection{Ventajas}
+\begin{itemize}
+    \item Captura dependencias no lineales y de cola
+    \item interpretación probabilística sólida de las señales
+    \item Mejor gestión del riesgo en eventos extremos
+\end{itemize}
+
+\subsection{Desafíos}
+\begin{itemize}
+    \item Complejidad en la estimación y selección del modelo
+    \item Requiere suficiente data histórica
+    \item Mayor costo computacional
+\end{itemize}
+
+\end{document}

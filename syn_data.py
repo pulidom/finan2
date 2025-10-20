@@ -90,7 +90,10 @@ def simulate_cointegrated_assets(sigma_X_t, sigma_Y_t, kappa_t, theta_t,
         spread = X[t] - Y[t] - th
         Y[t+1] = Y[t] + mu_Y * dt + k * spread * dt + sY * np.sqrt(dt) * dW[1]
 
-    return np.column_stack(X, Y)
+    print(X.shape)
+    print(Y.shape)
+    
+    return np.vstack([X, Y])
 
 def simulate_cointegrated_with_aux(
         
@@ -133,7 +136,7 @@ def simulate_cointegrated_with_aux(
         # Y determined from spread
         Y[t] = X[t] - S[t]
         
-    return np.column_stack(X, Y, Z)
+    return np.vstack([X, Y,Z])
 # ------------------------
 # Utils: muestreo multivar t
 # ------------------------
@@ -205,7 +208,7 @@ def simulate_with_heavy_t(
         # Y definido por X - spread
         Y[t+1] = X[t+1] - S[t+1]
 
-    return np.column_stack(X, Y, Z)
+    return  np.vstack([X, Y, Z])
 
 def load_sts(nt=5*252,lopt=0):
     '''  lopt=0 two cointegrated assets
@@ -213,11 +216,11 @@ def load_sts(nt=5*252,lopt=0):
          lopt=2 a third covariate variable and non-gaussian heavy tail stats
     '''
     sigma_X_t, sigma_Y_t, kappa_t, theta_t = generate_regime_parameters(nt, regime_length=nt)
-    if lout==0:
+    if lopt==0:
         ts = simulate_cointegrated_assets(sigma_X_t, sigma_Y_t, kappa_t, theta_t)
-    elif lout==1:
+    elif lopt==1:
         ts = simulate_cointegrated_with_aux(sigma_X_t, sigma_Y_t, kappa_t, theta_t)
-    elif lout==2:
+    elif lopt==2:
         ts = simulate_with_heavy_t(sigma_X_t, sigma_Y_t, kappa_t, theta_t)
     return ts
 
@@ -226,7 +229,6 @@ def load_sts(nt=5*252,lopt=0):
 # --------------------------------------------------
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-
     T = 5 * 252
     sigma_X_t = np.full(T, 0.02)
     sigma_Y_t = np.full(T, 0.025)

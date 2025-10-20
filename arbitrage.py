@@ -221,6 +221,7 @@ def inversion(x,y,cnf,shorten=0):
     if shorten: # problemas de memoria para simulaciones en paralelo all_pairs
         res={'capital':capital0}
     else:
+        print('')
         res={
             'largo':largo0, 'corto':corto0, 'capital':capital0, 'retorno':retorno0,
             'compras':compras0, 'ccompras':ccompras0, 'zscore':zscore0,
