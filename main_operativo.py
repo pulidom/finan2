@@ -10,11 +10,12 @@ import matplotlib.gridspec as gridspec
 import copy
 from time import time
 
-from read_data import load_ts
+from read_data import load_ts, yahoo_download
 import arbitrage as ar
 import plotting as gra
 import cointegration as co
 import utils
+import datetime
 
 class cnf:
     pathdat='dat/'
@@ -35,6 +36,7 @@ class cnf:
     
 # load data
 day,date,price,company,volume = load_ts(sectors=cnf.industry, pathdat=cnf.pathdat)
+#day,date,price,company,volume = yahoo_download(['AR','EQT','CNX','NAT','MTR'],datetime.date(2018,1,1),datetime.date(2022,1,1))
 
 
 caps = [[] for _ in range(6)]  
