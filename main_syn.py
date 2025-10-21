@@ -24,7 +24,7 @@ class cnf:
     tipo='log' #'asset' # 'asset', 'return', 'log_return', 'log'
     mtd = 'ot'# 'kf' 'exp' 'on' 'off'
     Njump = 84
-    beta_win=2*252 #*121   #21
+    beta_win=2*121 #*121   #21
     zscore_win=41 #11
     sigma_co=1.5 # thresold to buy
     sigma_ve=0.1 # thresold to sell
@@ -36,8 +36,8 @@ class cnf:
     shorten=0
     
 # load data
-nt= 10*252
-ts = load_sts(nt=nt,lopt=0,regime_length=nt)#252)
+nt= 5*252
+ts = load_sts(nt=nt,lopt=0,regime_length=nt,seed=45)#252)
 
 ts=ts[:2]
 
@@ -83,7 +83,7 @@ res.capital= res.capital[0] * np.cumprod(1 + res.retorno)
 #res.asset_y=y
 
 
-t=range(res.asset_x.shape[0])
+t=np.arange(res.asset_x.shape[0])/252
    
 figfile=cnf.fname+'scatter.png'
 fig, ax = plt.subplots(1,1,figsize=(7,5))
@@ -98,9 +98,11 @@ plt.tight_layout()
 fig.savefig(figfile)
 plt.close()
    
+t=np.arange(res.capital.shape[0])/252
+   
 figfile=cnf.fname+'capital.png'
 fig, ax = plt.subplots(1,1,figsize=(7,5))
-ax.plot(res.capital,label='cap 5')
+ax.plot(t,res.capital,label='cap 5')
 #ax.plot(res.capital[0],label='cap 5')
 #ax.plot(res.capital[1],label='cap 10')
 ax.set(title='capital testing')
@@ -112,11 +114,11 @@ plt.close()
 
 figfile=cnf.fname+'capital-largo-corto.png'
 fig, ax = plt.subplots(3,1,figsize=(7,7))
-ax[0].plot(res.largo.mean(-1).T)
+ax[0].plot(t,res.largo.mean(-1).T)
 ax[0].set(title='largo')
-ax[1].plot(res.corto.mean(-1).T)
+ax[1].plot(t,res.corto.mean(-1).T)
 ax[1].set(title='corto')
-ax[2].plot(res.capital.T)
+ax[2].plot(t,res.capital.T)
 ax[2].set(title='capital')
 plt.tight_layout()
 fig.savefig(figfile)

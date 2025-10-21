@@ -135,10 +135,10 @@ def simulate_with_regime_breaks(sigma_X_t, sigma_Y_t, kappa_t, theta_t, rho_t,
 # --------------------------------------------------
 def generate_regime_parameters(T, regime_length=252, 
                                kappa_range=(0.03, 0.20),
-#                               sigmaX_range=(20*0.01,20* 0.04),
-#                               sigmaY_range=(20*0.012,20* 0.05),
-                               sigmaX_range=(0.01, 0.04),
-                               sigmaY_range=(0.012, 0.05),
+                               sigmaX_range=(20*0.01,20* 0.04),
+                               sigmaY_range=(20*0.012,20* 0.05),
+#                               sigmaX_range=(0.01, 0.04),
+#                               sigmaY_range=(0.012, 0.05),
                                theta_shift_prob=0.3,
                                theta_shift_range=(-1.0, 1.0),
                                seed=None):
@@ -341,13 +341,13 @@ def simulate_with_heavy_t(
 
     return  np.vstack([X, Y, Z])
 
-def load_sts(nt=5*252,lopt=0,regime_length=None):
+def load_sts(nt=5*252,lopt=0,regime_length=None,seed=42):
     '''  lopt=0 two cointegrated assets
          lopt=1 a third covariate variable
          lopt=2 a third covariate variable and non-gaussian heavy tail stats
     '''
     if regime_length==None: regime_length= nt
-    sigma_X_t, sigma_Y_t, kappa_t, theta_t = generate_regime_parameters(nt, regime_length, seed=42)
+    sigma_X_t, sigma_Y_t, kappa_t, theta_t = generate_regime_parameters(nt, regime_length, seed=seed)
     
     if lopt==0:
         ts = simulate_cointegrated_assets(sigma_X_t, sigma_Y_t, kappa_t, theta_t)
@@ -358,7 +358,7 @@ def load_sts(nt=5*252,lopt=0,regime_length=None):
 
     elif lopt==3:
         sigma_X_t, sigma_Y_t, kappa_t, theta_t, rho_t, regime_labels = generate_regime_parameters_with_breaks(
-            nt, regime_length=regime_length, break_length=30, seed=42
+            nt, regime_length=regime_length, break_length=30, seed=seed
         )
     
     # Simular
