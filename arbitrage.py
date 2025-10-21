@@ -85,13 +85,21 @@ def online_zscores(x, y,
             cached_y, *_ = ot.ot_barycenter_solver(x_win, y_win, n_iter=100)
             cached_Z_ot = y_win.copy()
             spread[it] = ot.interpolate_barycenter(y[it], cached_Z_ot, cached_y)
-            
+
             if it >= zscore_win and not np.isnan(spread[it]):
                 spread_win = spread[it - zscore_win + 1:it + 1]
                 valid = spread_win[~np.isnan(spread_win)]
-                if len(valid) >= zscore_win // 2:
-                    spread_mean[it], spread_std[it] = np.mean(valid), np.std(valid)
-                    zscore[it] = (spread[it] - spread_mean[it]) / (spread_std[it] + eps)
+                spread_mean[it], spread_std[it] = np.mean(valid), np.std(valid)
+                zscore[it] = (spread[it] - spread_mean[it]) / (spread_std[it] + eps)
+               # if len(valid) >= zscore_win // 2:
+               #     spread_mean[it], spread_std[it] = np.mean(valid), np.std(valid)
+               #     zscore[it] = (spread[it] - spread_mean[it]) / (spread_std[it] + eps)
+#            if it >= zscore_win and not np.isnan(spread[it]):
+#                spread_win = spread[it - zscore_win + 1:it + 1]
+#                valid = spread_win[~np.isnan(spread_win)]
+#                if len(valid) >= zscore_win // 2:
+#                    spread_mean[it], spread_std[it] = np.mean(valid), np.std(valid)
+#                    zscore[it] = (spread[it] - spread_mean[it]) / (spread_std[it] + eps)
             
 
     else: # exponential mean, this is purely sequential from start

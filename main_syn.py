@@ -23,9 +23,8 @@ class cnf:
 #    mtd = 'on'# 'kf' 'exp' 'on' 'off'
     tipo='log' #'asset' # 'asset', 'return', 'log_return', 'log'
     mtd = 'ot'# 'kf' 'exp' 'on' 'off'
-    Ntraining = 2*252 # length of the training period
     Njump = 84
-    beta_win=8*121   #21
+    beta_win=2*252 #*121   #21
     zscore_win=41 #11
     sigma_co=1.5 # thresold to buy
     sigma_ve=0.1 # thresold to sell
@@ -38,7 +37,7 @@ class cnf:
     
 # load data
 nt= 10*252
-ts = load_sts(nt=nt,lopt=0,regime_length=252)
+ts = load_sts(nt=nt,lopt=0,regime_length=nt)#252)
 
 ts=ts[:2]
 
@@ -69,8 +68,8 @@ res = {
     for key in res_l[0].keys()  # Usa las keys del primer diccionario
     }
 
-for key in res_l[0].keys():  # Usa las keys del primer diccionario
-    print(key)
+#for key in res_l[0].keys():  # Usa las keys del primer diccionario
+#    print(key)
 
 #res = utils.Results(**res) # mas elegante con objetos! :)
 res = utils.dict2obj(**res) # mas elegante con objetos! :)
@@ -125,11 +124,11 @@ plt.close()
 
 
 gra.plot_zscore(0,res,cnf.fname)
+quit()
 #gra.plot_zscore(1,res,cnf.fname)
-gra.plot_capital_single(0,res,cnf.fname)
+#gra.plot_capital_single(0,res,cnf.fname)
 #gra.plot_capital_single(1,res,cnf.fname)
 
-quit()
 
 
 metrics = co.stats(res.assets,'log')
