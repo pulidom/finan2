@@ -17,14 +17,14 @@ import plotting as gra
 import cointegration as co
 import utils
 
-class cnf:
+class cnf_cls:
     pathdat='dat/'
 #    tipo='asset' # 'asset', 'return', 'log_return', 'log'
 #    mtd = 'on'# 'kf' 'exp' 'on' 'off'
-    tipo='log' #'asset' # 'asset', 'return', 'log_return', 'log'
+    tipo='asset' #'asset' # 'asset', 'return', 'log_return', 'log'
     mtd = 'ot'# 'kf' 'exp' 'on' 'off'
     Njump = 84
-    beta_win=2*121 #*121   #21
+    beta_win=6*121 #*121   #21
     zscore_win=41 #11
     sigma_co=1.5 # thresold to buy
     sigma_ve=0.1 # thresold to sell
@@ -34,17 +34,22 @@ class cnf:
 #    industry=['beverages'] #['oil'] # ['beverages']
     fname=f'tmp/syn_pair_{mtd}_' # fig filename
     shorten=0
-    
+
+cnf_co = cnf_cls(); cnf = cnf_cls()
+cnf_co= copy.deepcopy(cnf)
+cnf_co.tipo='asset'
+cnf_co.mtd='on'
+
 # load data
-nt= 5*252
-ts = load_sts(nt=nt,lopt=0,regime_length=nt,seed=45)#252)
+nt= 10*252
+ts = load_sts(nt=nt,lopt=2,regime_length=nt,seed=43)#252)
 
 ts=ts[:2]
 
 
 print('Nro de tiempos/dias',nt)
 iini=0
-res_l=[]
+res_l=[]; res_co_l=[]
 # select training period
 for ilast in range(cnf.beta_win+cnf.Njump,nt,cnf.Njump):
 #for ilast in range(cnf.Ntraining+cnf.Njump,cnf.Ntraining+2 * cnf.Njump,cnf.Njump):
@@ -60,12 +65,20 @@ for ilast in range(cnf.beta_win+cnf.Njump,nt,cnf.Njump):
 
     res_l.append(res)
 
+    res_co = ar.inversion(x,y,cnf_co,shorten=cnf.shorten)
+
+    res_co_l.append(res_co)
+
 
        
 #ret1 = np.concatenate([res['retorno'][cnf.beta_win:] for res in res_l],axis=0)
 res = {
     key: np.concatenate([res[key][cnf.beta_win:] for res in res_l],axis=0)
     for key in res_l[0].keys()  # Usa las keys del primer diccionario
+    }
+res_co = {
+    key: np.concatenate([res[key][cnf.beta_win:] for res in res_co_l],axis=0)
+    for key in res_co_l[0].keys()  # Usa las keys del primer diccionario
     }
 
 #for key in res_l[0].keys():  # Usa las keys del primer diccionario
@@ -74,10 +87,15 @@ res = {
 #res = utils.Results(**res) # mas elegante con objetos! :)
 res = utils.dict2obj(**res) # mas elegante con objetos! :)
 
+res_co = utils.dict2obj(**res_co) # mas elegante con objetos! :)
 
 res.capital=np.zeros_like(res.retorno)
 res.capital[0]=100
 res.capital= res.capital[0] * np.cumprod(1 + res.retorno)
+
+res_co.capital=np.zeros_like(res_co.retorno)
+res_co.capital[0]=100
+res_co.capital= res_co.capital[0] * np.cumprod(1 + res_co.retorno)
 
 #res.asset_x=x
 #res.asset_y=y
@@ -102,10 +120,12 @@ t=np.arange(res.capital.shape[0])/252
    
 figfile=cnf.fname+'capital.png'
 fig, ax = plt.subplots(1,1,figsize=(7,5))
-ax.plot(t,res.capital,label='cap 5')
+ax.plot(t,res.capital,label='Tabak')
+ax.plot(t,res_co.capital,label='Cointegration')
 #ax.plot(res.capital[0],label='cap 5')
 #ax.plot(res.capital[1],label='cap 10')
 ax.set(title='capital testing')
+ax.legend()
 plt.tight_layout()
 fig.savefig(figfile)
 plt.close()

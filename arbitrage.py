@@ -82,28 +82,25 @@ def online_zscores(x, y,
             x_win = x[it - beta_win:it+1]
             y_win = y[it - beta_win:it+1]
 
-            cached_y, *_ = ot.ot_barycenter_solver(y_win, x_win, n_iter=1000)
+            cached_y, *_ = ot.ot_barycenter_solver(y_win, x_win, n_iter=100)
             spread[it]=cached_y[-1]
             spread_mean[it], spread_std[it] = np.mean(cached_y), np.std(cached_y)
             zscore[it] = (spread[it] - spread_mean[it]) / (spread_std[it] + eps)
-            #cached_Z_ot = y_win.copy()
-            #spread[it] = ot.interpolate_barycenter(y[it], cached_Z_ot, cached_y)
-
-#            if it >= zscore_win and not np.isnan(spread[it]):
-#                spread_win = spread[it - zscore_win + 1:it + 1]
-#                valid = spread_win[~np.isnan(spread_win)]
-#                spread_mean[it], spread_std[it] = np.mean(valid), np.std(valid)
-#                zscore[it] = (spread[it] - spread_mean[it]) / (spread_std[it] + eps)
-               # if len(valid) >= zscore_win // 2:
-               #     spread_mean[it], spread_std[it] = np.mean(valid), np.std(valid)
-               #     zscore[it] = (spread[it] - spread_mean[it]) / (spread_std[it] + eps)
-#            if it >= zscore_win and not np.isnan(spread[it]):
-#                spread_win = spread[it - zscore_win + 1:it + 1]
-#                valid = spread_win[~np.isnan(spread_win)]
-#                if len(valid) >= zscore_win // 2:
-#                    spread_mean[it], spread_std[it] = np.mean(valid), np.std(valid)
-#                    zscore[it] = (spread[it] - spread_mean[it]) / (spread_std[it] + eps)
-            
+#            if it >= zscore_win:
+#                spread_win = spread[it-zscore_win+1:it+1] # incluye el it
+#                spread_mean[it],spread_std[it] = mean_fn(spread_win)
+#                zscore[it] = (spread[it] - spread_mean[it]) / (spread_std[it]+eps)
+#    elif mtd=='copula':
+#        for it in range(beta_win, len(x)):
+#            # Ventana de entrenamiento OT
+#            x_win = x[it - beta_win:it+1]
+#            y_win = y[it - beta_win:it+1]
+#            
+#            uniform_x = to_uniform_margins(x_win)
+#            uniform_y = to_uniform_margins(y_win)
+#            uniform_data = np.column_stack([uniform_x, uniform_y])
+#
+#            copula = Gaussian()
 
     else: # exponential mean, this is purely sequential from start
         for it in range(len(x)):

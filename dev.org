@@ -103,11 +103,11 @@ Puedo ir viendo como se mueven las particulas y ademas como se va reduciendo la 
 
 - Entrenás el copula con una ventana histórica (rolling window o fija).
 
-- Calculás para cada nuevo par de precios (xt,yt)(xt​,yt​) su transformación a ut,vtut​,vt​.
+- Calculás para cada nuevo par de precios (xt,yt) su transformación a ut,vt.
 
 - Evaluás cuán probable o anómala es esa observación bajo el copula.
 
-- Cuando el valor conjunto (ut,vt)(ut​,vt​) tiene baja densidad bajo el copula → señal de entrada.
+- Cuando el valor conjunto (ut,vt) tiene baja densidad bajo el copula → señal de entrada.
 
 - Salís cuando vuelve a una región de alta densidad → reversión.
 
