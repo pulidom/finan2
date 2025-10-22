@@ -8,12 +8,13 @@ def vertical_bar(axs,compras,ccompras):
     start_indices, end_indices= utils.calc_startend(compras[:,None])
     start_cindices, end_cindices= utils.calc_startend(ccompras[:,None])
 
-    indices=np.arange(compras.shape[0]/252)
+    indices=np.arange(compras.shape[0])
+    t=np.arange(compras.shape[0])/252
     for ax in axs:
         for start, end in zip(start_indices[0], end_indices[0]):
-            ax.axvspan(indices[start], indices[end], alpha=0.3, color='green')
+            ax.axvspan(t[start], t[end], alpha=0.3, color='green')
         for start, end in zip(start_cindices[0], end_cindices[0]):
-            ax.axvspan(indices[start], indices[end], alpha=0.3, color='red')
+            ax.axvspan(t[start], t[end], alpha=0.3, color='red')
     
 def plot_zscore(j,res0,fname):
 
