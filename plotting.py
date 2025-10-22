@@ -9,6 +9,7 @@ def vertical_bar(axs,compras,ccompras):
     start_cindices, end_cindices= utils.calc_startend(ccompras[:,None])
 
     indices=np.arange(compras.shape[0])
+    
     t=np.arange(compras.shape[0])/252
     for ax in axs:
         for start, end in zip(start_indices[0], end_indices[0]):
@@ -51,16 +52,15 @@ def plot_zscore(j,res0,fname):
 
     ax3 = fig.add_subplot(gs[1, :])
     ax3.plot(t,res.zscore)
+    vertical_bar([ax3],res.compras,res.ccompras)
+    #vertical_bar([ax3],res.compras,res.ccompras)
     ax3.set_title('Z-score')
-
-    vertical_bar([ax3],res.compras,res.ccompras)
-    vertical_bar([ax3],res.compras,res.ccompras)
     
     plt.tight_layout()
     fig.savefig(figfile)
     plt.close()
 
-
+    
 def plot_capital_single(j,res0,fname):
     nt=res0.spread.shape[1]
     res = copy.deepcopy(res0) 

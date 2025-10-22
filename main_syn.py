@@ -16,13 +16,15 @@ import arbitrage as ar
 import plotting as gra
 import cointegration as co
 import utils
+import plotting
+#from plotting import vertical_bar
 
 class cnf_cls:
     pathdat='dat/'
 #    tipo='asset' # 'asset', 'return', 'log_return', 'log'
 #    mtd = 'on'# 'kf' 'exp' 'on' 'off'
-    tipo='log' #'asset' # 'asset', 'return', 'log_return', 'log'
-    mtd = 'ot'# 'kf' 'exp' 'on' 'off'
+    tipo='asset' #asset'#log' #'asset' # 'asset', 'return', 'log_return', 'log'
+    mtd = 'copula'# 'kf' 'exp' 'on' 'off'
     Njump = 84
     beta_win=6*121 #*121   #21
     zscore_win=41 #11
@@ -52,7 +54,6 @@ iini=0
 res_l=[]; res_co_l=[]
 # select training period
 for ilast in range(cnf.beta_win+cnf.Njump,nt,cnf.Njump):
-#for ilast in range(cnf.Ntraining+cnf.Njump,cnf.Ntraining+2 * cnf.Njump,cnf.Njump):
     print(iini,ilast,ilast-iini)
     
     x,y=ts[:,iini:ilast]
@@ -62,11 +63,9 @@ for ilast in range(cnf.beta_win+cnf.Njump,nt,cnf.Njump):
     res = ar.inversion(x,y,cnf,shorten=cnf.shorten)
     res['asset_x']=x
     res['asset_y']=y
-
     res_l.append(res)
 
     res_co = ar.inversion(x,y,cnf_co,shorten=cnf.shorten)
-
     res_co_l.append(res_co)
 
 
@@ -84,9 +83,7 @@ res_co = {
 #for key in res_l[0].keys():  # Usa las keys del primer diccionario
 #    print(key)
 
-#res = utils.Results(**res) # mas elegante con objetos! :)
 res = utils.dict2obj(**res) # mas elegante con objetos! :)
-
 res_co = utils.dict2obj(**res_co) # mas elegante con objetos! :)
 
 res.capital=np.zeros_like(res.retorno)
@@ -130,28 +127,21 @@ fig.savefig(figfile)
 plt.close()
 
 
-
-figfile=cnf.fname+'capital-largo-corto.png'
-fig, ax = plt.subplots(3,1,figsize=(7,7))
-ax[0].plot(t,res.largo.mean(-1).T)
-ax[0].set(title='largo')
-ax[1].plot(t,res.corto.mean(-1).T)
-ax[1].set(title='corto')
-ax[2].plot(t,res.capital.T)
-ax[2].set(title='capital')
+t=np.arange(res.zscore.shape[0])/252
+figfile=cnf.fname+'zscores.png'
+fig, ax = plt.subplots(2,1,figsize=(7,7))
+ax[0].plot(t,res.zscore)
+plotting.vertical_bar([ax[0]],res.compras,res.ccompras)
+ax[1].plot(t,res_co.zscore)
+plotting.vertical_bar([ax[1]],res_co.compras,res_co.ccompras)
 plt.tight_layout()
 fig.savefig(figfile)
 plt.close()
 
 
-gra.plot_zscore(0,res,cnf.fname)
+
+
 quit()
-#gra.plot_zscore(1,res,cnf.fname)
-#gra.plot_capital_single(0,res,cnf.fname)
-#gra.plot_capital_single(1,res,cnf.fname)
-
-
-
 metrics = co.stats(res.assets,'log')
 figfile=cnf.fname+f'scatters.png'
 fig, ax = plt.subplots(2,3,figsize=(9,3))

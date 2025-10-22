@@ -11,7 +11,7 @@ from utils import (rolling, erolling, crolling,
                    rolling_meanvar, exp_mean, mean_function, meanvar,
                    lin_reg,lin_reg_alpha0)
 import optimal_transport as ot
-
+import copula
 
 def calculate_spread( x, y,window):
     """
@@ -90,17 +90,24 @@ def online_zscores(x, y,
 #                spread_win = spread[it-zscore_win+1:it+1] # incluye el it
 #                spread_mean[it],spread_std[it] = mean_fn(spread_win)
 #                zscore[it] = (spread[it] - spread_mean[it]) / (spread_std[it]+eps)
-#    elif mtd=='copula':
-#        for it in range(beta_win, len(x)):
-#            # Ventana de entrenamiento OT
-#            x_win = x[it - beta_win:it+1]
-#            y_win = y[it - beta_win:it+1]
-#            
-#            uniform_x = to_uniform_margins(x_win)
-#            uniform_y = to_uniform_margins(y_win)
-#            uniform_data = np.column_stack([uniform_x, uniform_y])
-#
-#            copula = Gaussian()
+    elif mtd=='copula':
+        for it in range(beta_win, len(x)):
+            # Ventana de entrenamiento OT
+            x_win = x[it - beta_win:it+1]
+            y_win = y[it - beta_win:it+1]
+
+            spread0 = copula.copula_zscore(x_win,y_win)
+            spread[it]=spread0[-1]
+            zscore[it] =spread0[-1]
+#            if it >= zscore_win:
+#                spread_win = spread[it-zscore_win+1:it+1] # incluye el it
+#                spread_mean[it],spread_std[it] = mean_fn(spread_win)
+#                zscore[it] = (spread[it] - spread_mean[it]) / spread_std[it]
+                #spread_mean[it], spread_std[it] = (np.mean(spread0[-zscore_win:]),
+                #                                   np.std(spread0[-zscore_win:]))
+                #zscore[it] = (spread[it] - spread_mean[it]) / (spread_std[it] + eps)
+                #
+##            print('z',zscore[it]) 
 
     else: # exponential mean, this is purely sequential from start
         for it in range(len(x)):

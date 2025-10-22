@@ -65,7 +65,6 @@ plt.savefig('test.png')
 - hay una ventana de beta_win que se podria usar los datos de training para calcular el beta.
 
 - en el arbitrage se deberia solo guardar las salidas para la etapa de prediccion sin los de la beta_win (mas alla que el calculo si requiera de la beta_win).
-
   
 ** enkf
 
@@ -96,7 +95,7 @@ Se puede pensar la metodologia como un expectation maximization? en algun sentid
 
 Puedo ir viendo como se mueven las particulas y ademas como se va reduciendo la parte de la cost function que tiene que ver con la independencia?
 
-** Copulas
+** Copuas
 
 
 
