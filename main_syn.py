@@ -21,7 +21,7 @@ class cnf_cls:
     pathdat='dat/'
 #    tipo='asset' # 'asset', 'return', 'log_return', 'log'
 #    mtd = 'on'# 'kf' 'exp' 'on' 'off'
-    tipo='asset' #'asset' # 'asset', 'return', 'log_return', 'log'
+    tipo='log' #'asset' # 'asset', 'return', 'log_return', 'log'
     mtd = 'ot'# 'kf' 'exp' 'on' 'off'
     Njump = 84
     beta_win=6*121 #*121   #21
@@ -99,7 +99,6 @@ res_co.capital= res_co.capital[0] * np.cumprod(1 + res_co.retorno)
 
 #res.asset_x=x
 #res.asset_y=y
-
 
 t=np.arange(res.asset_x.shape[0])/252
    

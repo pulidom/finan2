@@ -8,7 +8,7 @@ def vertical_bar(axs,compras,ccompras):
     start_indices, end_indices= utils.calc_startend(compras[:,None])
     start_cindices, end_cindices= utils.calc_startend(ccompras[:,None])
 
-    indices=np.arange(compras.shape[0])
+    indices=np.arange(compras.shape[0]/252)
     for ax in axs:
         for start, end in zip(start_indices[0], end_indices[0]):
             ax.axvspan(indices[start], indices[end], alpha=0.3, color='green')
@@ -25,7 +25,9 @@ def plot_zscore(j,res0,fname):
         res.reorder(j) # select the pair
     else:
         nt=res0.spread.shape[0]# 1-->0???
-        
+
+    t=np.arange(nt)/252
+    
     figfile=fname+f'zscore{j}.png'
     fig = plt.figure(figsize=(7, 5))
 
@@ -34,22 +36,23 @@ def plot_zscore(j,res0,fname):
     ax1 = fig.add_subplot(gs[0, 0])
 #    ax1.plot(res.assets[0],label=res.company[0])
 #    ax1.plot(res.assets[1],label=res.company[1])
-    ax1.plot(res.asset_x,label='x')#,label=res.company[0])
-    ax1.plot(res.asset_y,label='y')#,label=res.company[1])
+    ax1.plot(t,res.asset_x,label='x')#,label=res.company[0])
+    ax1.plot(t,res.asset_y,label='y')#,label=res.company[1])
     ax1.legend()
     ax1.set_title('Assets')
 
     ax2 = fig.add_subplot(gs[0, 1])
-    ax2.plot(range(nt),res.spread)
-    ax2.plot(range(nt),res.spread_mean)
-    ax2.fill_between(range(nt), res.spread_mean - 1.96* res.spread_std,
+    ax2.plot(t,res.spread)
+    ax2.plot(t,res.spread_mean)
+    ax2.fill_between(t, res.spread_mean - 1.96* res.spread_std,
                      res.spread_mean +1.95* res.spread_std,color='gray', alpha=0.2)
     ax2.set_title('Spread')
 
     ax3 = fig.add_subplot(gs[1, :])
-    ax3.plot(res.zscore)
+    ax3.plot(t,res.zscore)
     ax3.set_title('Z-score')
 
+    vertical_bar([ax3],res.compras,res.ccompras)
     vertical_bar([ax3],res.compras,res.ccompras)
     
     plt.tight_layout()
