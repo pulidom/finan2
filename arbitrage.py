@@ -109,7 +109,7 @@ def online_zscores(x, y,
             x_sample = ot.simulate_conditional(y_sample, y_win[-1], Qz, Bz, By, centers_z, lambda_val, s, U, Vt)
             spread_mean[it], spread_std[it] = np.mean(x_sample), np.std(x_sample)
 #            zscore[it] = (spread[it] - spread_mean[it]) / (spread_std[it] + eps)
-            zscore[it] = (x_win[-1] - spread_mean[it]) / (spread_std[it] + eps)
+            zscore[it] = - (x_win[-1] - spread_mean[it]) / (spread_std[it] + eps)
 #            if it >= zscore_win:
 #                spread_win = spread[it-zscore_win+1:it+1] # incluye el it
 #                spread_mean[it],spread_std[it] = mean_fn(spread_win)

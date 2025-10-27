@@ -50,7 +50,7 @@ class cnf_cls:
 class cnf_train: 
     loss = lossfn.loss_fn #nn.MSELoss() #nn.logGaussLoss #SupervLoss # GaussLoss
     batch_size=cnf_cls.batch_size
-    n_epochs = 200
+    n_epochs = 100
     learning_rate = 1e-3
     exp_dir = 'dat/rnn'
     lvalidation = True 
@@ -79,7 +79,7 @@ cnf_co.mtd='on'
 nt=cnf.n_train+2*cnf.n_val
 #nt= 10*252
 
-ts = load_sts(nt=nt,lopt=0,regime_length=nt,seed=43)#252)
+ts = load_sts(nt=nt,lopt=0,regime_length=nt,seed=53)#252)
 #figfile=cnf.fname+'prediction.png'
 #t=np.arange(ts[0].shape[0])
 #fig, ax = plt.subplots(3,1,figsize=(7,7))
@@ -112,12 +112,6 @@ x0,y0,nret0_x,nret0_y = utils.select_variables(ts[0],ts[1],tipo=cnf.tipo)
 ts = np.vstack([x0, y0])
 [loader_train, loader_val, loader_test] = create_dataloaders(ts,cnf)
 
-
-# Neural net
-Net = net.Net(cnf_net)
-# Training
-best_net,loss_t,loss_v = train.train( Net,loader_train,loader_val,cnf_train )
-
 test_batch= next(iter(loader_test))
 in0,out0=test_batch
 print(in0.shape)
@@ -126,12 +120,18 @@ fig, ax = plt.subplots(3,1,figsize=(7,7))
 fig, ax = plt.subplots(3,1,figsize=(7,7))
 ax[0].plot(in0[50])
 ax[0].plot(out0[50])
-#ax[1].plot(t,mu_pred[100])
-#ax[1].plot(t,target_dat[100])
-#ax[2].plot(t,mu_pred[200])
-#ax[2].plot(t,target_dat[200])
+ax[1].plot(in0[100])
+ax[1].plot(out0[100])
+ax[2].plot(in0[200])
+ax[2].plot(out0[200])
 plt.tight_layout()
 fig.savefig(figfile)
+
+# Neural net
+Net = net.Net(cnf_net)
+# Training
+best_net,loss_t,loss_v = train.train( Net,loader_train,loader_val,cnf_train )
+
 
 for i_batch, (input_dat,target_dat) in enumerate(loader_test):
 
@@ -153,11 +153,11 @@ print(sigma_pred.shape)
 figfile=cnf.fname+'prediction.png'
 t=np.arange(mu_pred.shape[1])
 fig, ax = plt.subplots(3,1,figsize=(7,7))
-#ax[0].plot(t,mu_pred[50])
+ax[0].plot(t,mu_pred[50])
 ax[0].plot(t,target_dat[50])
-#ax[1].plot(t,mu_pred[100])
+ax[1].plot(t,mu_pred[100])
 ax[1].plot(t,target_dat[100])
-#ax[2].plot(t,mu_pred[200])
+ax[2].plot(t,mu_pred[200])
 ax[2].plot(t,target_dat[200])
 plt.tight_layout()
 fig.savefig(figfile)

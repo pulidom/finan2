@@ -44,7 +44,7 @@ cnf_co.mtd='on'
 
 # load data
 nt= 10*252
-ts = load_sts(nt=nt,lopt=2,regime_length=nt,seed=43)#252)
+ts = load_sts(nt=nt,lopt=2,regime_length=nt,seed=53)#252)
 
 ts=ts[:2]
 
