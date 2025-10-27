@@ -23,10 +23,10 @@ class cnf_cls:
     pathdat='dat/'
 #    tipo='asset' # 'asset', 'return', 'log_return', 'log'
 #    mtd = 'on'# 'kf' 'exp' 'on' 'off'
-    tipo='asset' #asset'#log' #'asset' # 'asset', 'return', 'log_return', 'log'
-    mtd = 'copula'# 'kf' 'exp' 'on' 'off'
+    tipo='log' #asset'#log' #'asset' # 'asset', 'return', 'log_return', 'log'
+    mtd = 'ot2'# 'kf' 'exp' 'on' 'off'
     Njump = 84
-    beta_win=6*121 #*121   #21
+    beta_win=121 #*121   #21
     zscore_win=41 #11
     sigma_co=1.5 # thresold to buy
     sigma_ve=0.1 # thresold to sell

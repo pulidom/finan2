@@ -11,6 +11,7 @@ from utils import (rolling, erolling, crolling,
                    rolling_meanvar, exp_mean, mean_function, meanvar,
                    lin_reg,lin_reg_alpha0)
 import optimal_transport as ot
+from scipy.stats import rankdata
 import copula
 
 def calculate_spread( x, y,window):
@@ -82,10 +83,33 @@ def online_zscores(x, y,
             x_win = x[it - beta_win:it+1]
             y_win = y[it - beta_win:it+1]
 
-            cached_y, *_ = ot.ot_barycenter_solver(y_win, x_win, n_iter=100)
-            spread[it]=cached_y[-1]
-            spread_mean[it], spread_std[it] = np.mean(cached_y), np.std(cached_y)
+            y_sample, *_ = ot.ot_barycenter_solver(y_win, x_win, n_iter=100)
+            spread[it]=y_sample[-1]
+            spread_mean[it], spread_std[it] = np.mean(y_sample), np.std(y_sample)
             zscore[it] = (spread[it] - spread_mean[it]) / (spread_std[it] + eps)
+#            if it >= zscore_win:
+#                spread_win = spread[it-zscore_win+1:it+1] # incluye el it
+#                spread_mean[it],spread_std[it] = mean_fn(spread_win)
+#                zscore[it] = (spread[it] - spread_mean[it]) / (spread_std[it]+eps)
+
+## Calcula el rango / (N + 1) para evitar p=0 y p=1
+#N = len(x_sample_no_normal)
+#percentiles = rankdata(x_sample_no_normal) / (N + 1)
+
+## 2. Aplicar la función de Percent Point (Inversa de la CDF Normal)
+#z_score_cdf = norm.ppf(percentiles)
+
+    elif mtd=='ot2':
+        for it in range(beta_win, len(x)):
+            # Ventana de entrenamiento OT
+            x_win = x[it - beta_win:it+1]
+            y_win = y[it - beta_win:it+1]
+
+            y_sample,  s, U, Vt, Qz, Bz, By, centers_z, lambda_val = ot.ot_barycenter_solver(y_win, x_win, n_iter=100)
+            x_sample = ot.simulate_conditional(y_sample, y_win[-1], Qz, Bz, By, centers_z, lambda_val, s, U, Vt)
+            spread_mean[it], spread_std[it] = np.mean(x_sample), np.std(x_sample)
+#            zscore[it] = (spread[it] - spread_mean[it]) / (spread_std[it] + eps)
+            zscore[it] = (x_win[-1] - spread_mean[it]) / (spread_std[it] + eps)
 #            if it >= zscore_win:
 #                spread_win = spread[it-zscore_win+1:it+1] # incluye el it
 #                spread_mean[it],spread_std[it] = mean_fn(spread_win)
@@ -250,6 +274,23 @@ def inversion(x,y,cnf,shorten=0):
     largo0, corto0, capital0,retorno0 = capital_invertido(nret_x,nret_y,
                                                  compras0,ccompras0,
                                                  beta=beta)
+
+    if shorten: # problemas de memoria para simulaciones en paralelo all_pairs
+        res={'capital':capital0}
+    else:
+        print('')
+        res={
+            'largo':largo0, 'corto':corto0, 'capital':capital0, 'retorno':retorno0,
+            'compras':compras0, 'ccompras':ccompras0, 'zscore':zscore0,
+            'beta':b, 'spread':s, 'spread_mean':sm, 'spread_std':ss }
+    return res
+
+def inversion_zscore(zscore0,nret_x,nret_y,cnf,shorten=0):
+    
+    compras0,ccompras0 = invierte( zscore0, cnf.sigma_co, cnf.sigma_ve )
+    largo0, corto0, capital0,retorno0 = capital_invertido(nret_x,nret_y,
+                                                          compras0,ccompras0,
+                                                          beta=None)
 
     if shorten: # problemas de memoria para simulaciones en paralelo all_pairs
         res={'capital':capital0}
