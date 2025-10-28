@@ -32,6 +32,7 @@ def create_dataloaders(ts,conf,dat_type=['train','val','test']):
         nt0, nt1, batch_size, shuffle = dat_spec[dat_name]
 
         dat = ts[nt0:nt1]
+        print('create: ',ts.max(),ts.min())
         
         dset = DriveData(dat, nt_in=1, nt_jump = conf.Njump, nt_out=nt_out, 
                             jvar_in=var_in, jvar_out=var_out)
@@ -53,13 +54,13 @@ class DriveData(Dataset):
                  normalize=None,
                  ldeepar=True,
                  ):
-        
+
         if normalize is not None:
             if normalize == 'gauss':                
                 dat=self.normalize_gauss(dat)
             elif normalize == 'min-max':
                 dat=self.normalize_minmax(dat)
-        print('data shape: ',dat.shape)
+        
         self.xs,self.ys = self.chunks(dat,nt_in,nt_out,nt_jump,
                                       jvar_in,jvar_out,
                                       ldeepar=ldeepar)

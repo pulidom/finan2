@@ -80,18 +80,18 @@ nt=cnf.n_train+2*cnf.n_val
 #nt= 10*252
 
 ts = load_sts(nt=nt,lopt=0,regime_length=nt,seed=53)#252)
-#figfile=cnf.fname+'prediction.png'
-#t=np.arange(ts[0].shape[0])
-#fig, ax = plt.subplots(3,1,figsize=(7,7))
-#ax[0].plot(t[0:1_000],ts[0,0:1_000])
-#ax[0].plot(t[0:1_000],ts[1,0:1_000])
-#ax[1].plot(t[10_000:12_000],ts[0,10_000:12_000])
-#ax[1].plot(t[10_000:12_000],ts[1,10_000:12_000])
-#ax[2].plot(t[18_000:20_000],ts[0,18_000:20_000])
-#ax[2].plot(t[18_000:20_000],ts[1,18_000:20_000])
-#plt.tight_layout()
-#fig.savefig(figfile)
-#plt.close()
+figfile=cnf.fname+'data.png'
+t=np.arange(ts[0].shape[0])
+fig, ax = plt.subplots(3,1,figsize=(7,7))
+ax[0].plot(t[0:1_000],ts[0,0:1_000])
+ax[0].plot(t[0:1_000],ts[1,0:1_000])
+ax[1].plot(t[10_000:12_000],ts[0,10_000:12_000])
+ax[1].plot(t[10_000:12_000],ts[1,10_000:12_000])
+ax[2].plot(t[18_000:20_000],ts[0,18_000:20_000])
+ax[2].plot(t[18_000:20_000],ts[1,18_000:20_000])
+plt.tight_layout()
+fig.savefig(figfile)
+plt.close()
 #ts = load_sts(nt=nt,lopt=0,regime_length=nt,seed=43)#252)
 #figfile=cnf.fname+'prediction.png'
 #t=np.arange(ts[0].shape[0])
@@ -115,7 +115,7 @@ ts = np.vstack([x0, y0])
 test_batch= next(iter(loader_test))
 in0,out0=test_batch
 print(in0.shape)
-figfile=cnf.fname+'prediction-test.png'
+figfile=cnf.fname+'data-test.png'
 fig, ax = plt.subplots(3,1,figsize=(7,7))
 fig, ax = plt.subplots(3,1,figsize=(7,7))
 ax[0].plot(in0[50])
@@ -126,7 +126,6 @@ ax[2].plot(in0[200])
 ax[2].plot(out0[200])
 plt.tight_layout()
 fig.savefig(figfile)
-
 # Neural net
 Net = net.Net(cnf_net)
 # Training
@@ -148,8 +147,6 @@ for i_batch, (input_dat,target_dat) in enumerate(loader_test):
 mu_pred = mu_pred.cpu().detach().numpy()
 sigma_pred = sigma_pred.cpu().detach().numpy()
 target_dat = target_dat.cpu().detach().numpy()
-print(mu_pred.shape)
-print(sigma_pred.shape)
 figfile=cnf.fname+'prediction.png'
 t=np.arange(mu_pred.shape[1])
 fig, ax = plt.subplots(3,1,figsize=(7,7))
@@ -162,6 +159,13 @@ ax[2].plot(t,target_dat[200])
 plt.tight_layout()
 fig.savefig(figfile)
 plt.close()
+
+plt.figure(figsize=(6,4))
+plt.plot(range(len(loss_t)),loss_t,color='C0')
+plt.plot(range(len(loss_v)),loss_v,color='C1')
+plt.xlabel('Epoch');
+plt.ylabel('Loss');
+plt.savefig(conf.exp_dir+f'/loss.png')
 
 print('llego')
 quit()
