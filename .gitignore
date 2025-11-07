@@ -181,6 +181,7 @@ cython_debug/
 *.mod
 *.pyc
 *.so
+*.dvi
 *.eps
 *.pan
 *.npz
@@ -191,3 +192,4 @@ cython_debug/
 old/
 tmp/
 dat/
+tt/

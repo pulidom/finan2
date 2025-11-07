@@ -23,13 +23,14 @@ En el mercado de valores, pueden existir pares de activos que estan altamente re
 
 Puede haber momentos en los cuales uno de los activos de estos pares puede estar sobrevaluado o subvaluado con respecto al valor del otro activo. Si somos capaces de detectar los momentos en lo que esto sucede, luego esperamos que el activo retorne a su valor esperado por lo cual si entramos en posicion cuando detectamos estos  desajustes entre los valores de los activos podemos hacernos de una ganancia cuando estos activos retornen a los valores esperados.
 
-Dicho de otra manera estamos usando los valores de un activo para estimar el valor del otro activo considerando que ambos activos tienen los mismos drivers. De ser asi, podemos detectar cuando un activo esta sobrevaluado con respecto a su predicci\'on. Llamamos al proceso de ajuste de los activos como reversion a la media--mean reversion.
 
 Entonces en el pairs trading buscamos detectar desbalances entre dos activos  y cuando esto ocurre la estrategia consiste en comprar el activo que esperamos su precio aumente, el activo que esta barato, cuando haya reversion a la media y vender en corto el activo que su precio esta sobrevaluado, esperando una disminucion de valor cuando ocurra la reversion a la media. En general estas estrategias que se basan en retornos que acoplan la performance de posiciones en largo, con posiciones en corto se denominan market-neutral. El pair trading es un caso particular del pair trading.
 
 La metodologia general entonces consiste en buscar pares de activos que esten correlacionados  y esten gobernados por la reversion a la media, luego usar un m\'etodo predictivo que nos permita identificar en esos activos los desbalances de precios, generalmente basados en el z-score, y luego evaluar si la estrategia podr\'ia ser robusta a traves de backtesting, es decir implementaci\'on en series de tiempo ya existentes.
 
 Comenzando con la identificaci\'on de pares es necesario introducir el concepto de cointegraci\'on y ligado a este el de series de tiempo estacionarias. Pasemos a definir estos conceptos.
+
+%Dicho de otra manera estamos usando los valores de un activo para estimar el valor del otro activo considerando que ambos activos tienen los mismos drivers. De ser asi, podemos detectar cuando un activo esta sobrevaluado con respecto a su predicci\'on. Llamamos al proceso de ajuste de los activos como reversion a la media--mean reversion.
 
 \subsection{Series de tiempo estacionarias}
 \label{sec:org2946d4f}

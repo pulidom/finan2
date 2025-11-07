@@ -105,7 +105,7 @@ def online_zscores(x, y,
             x_win = x[it - beta_win:it+1]
             y_win = y[it - beta_win:it+1]
 
-            y_sample,  s, U, Vt, Qz, Bz, By, centers_z, lambda_val = ot.ot_barycenter_solver(y_win, x_win, n_iter=100)
+            y_sample,  s, U, Vt, Qz, Bz, By, centers_z, lambda_val = ot.ot_barycenter_solver(y_win[:-1], x_win[:-1], n_iter=100)
             x_sample = ot.simulate_conditional(y_sample, y_win[-1], Qz, Bz, By, centers_z, lambda_val, s, U, Vt)
             spread_mean[it], spread_std[it] = np.mean(x_sample), np.std(x_sample)
 #            zscore[it] = (spread[it] - spread_mean[it]) / (spread_std[it] + eps)
@@ -114,6 +114,20 @@ def online_zscores(x, y,
 #                spread_win = spread[it-zscore_win+1:it+1] # incluye el it
 #                spread_mean[it],spread_std[it] = mean_fn(spread_win)
 #                zscore[it] = (spread[it] - spread_mean[it]) / (spread_std[it]+eps)
+
+    elif mtd=='ot3':
+        for it in range(beta_win, len(x)):
+            # Ventana de entrenamiento OT
+            z_win = x[it - beta_win:it+1]
+            x_win = y[it - beta_win:it+1]
+
+            y_sample,  s, U, Vt, Qz, Bz, By, centers_z, lambda_val = ot.ot_barycenter_solver(x_win[:-1], z_win[:-1], n_iter=100)
+            x_sample = ot.simulate_conditional(y_sample, z_win[-1], Qz, Bz, By, centers_z, lambda_val, s, U, Vt)
+
+            spread_mean[it], spread_std[it] = np.mean(x_sample), np.std(x_sample)
+#            zscore[it] = (spread[it] - spread_mean[it]) / (spread_std[it] + eps)
+            zscore[it] =  - (x_win[-1] - spread_mean[it]) / (spread_std[it] + eps)
+
     elif mtd=='copula':
         for it in range(beta_win, len(x)):
             # Ventana de entrenamiento OT
@@ -152,6 +166,9 @@ def online_zscores(x, y,
 
         zscore[:beta_win]=np.nan
         
+    return zscore,beta,spread,spread_mean,spread_std
+def nn_zscores(x, y,
+               beta_win=41, zscore_win=21, eps = 1.e-10 ):
     return zscore,beta,spread,spread_mean,spread_std
 
 def kalman_cointegration(x, y, sigma_eps=1.0, sigma_eta_alpha=0.01, sigma_eta_beta=0.01):

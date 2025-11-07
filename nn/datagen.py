@@ -5,7 +5,8 @@ import sys;  sys.path.insert(0, '../')
 import numpy as np
 import numpy.random as rnd
 from numpy.lib.stride_tricks import sliding_window_view
-import torch as tor
+import torch
+from torch import nn
 from torch.utils.data import Dataset
 from torch.utils import data 
 
@@ -32,10 +33,9 @@ def create_dataloaders(ts,conf,dat_type=['train','val','test']):
         nt0, nt1, batch_size, shuffle = dat_spec[dat_name]
 
         dat = ts[nt0:nt1]
-        print('create: ',ts.max(),ts.min())
         
         dset = DriveData(dat, nt_in=1, nt_jump = conf.Njump, nt_out=nt_out, 
-                            jvar_in=var_in, jvar_out=var_out)
+                            jvar_in=var_in, jvar_out=var_out,normalize='gauss')
 
         loader = data.DataLoader(dset, batch_size=batch_size, shuffle=shuffle)
         loaders.append(loader)
@@ -55,11 +55,6 @@ class DriveData(Dataset):
                  ldeepar=True,
                  ):
 
-        if normalize is not None:
-            if normalize == 'gauss':                
-                dat=self.normalize_gauss(dat)
-            elif normalize == 'min-max':
-                dat=self.normalize_minmax(dat)
         
         self.xs,self.ys = self.chunks(dat,nt_in,nt_out,nt_jump,
                                       jvar_in,jvar_out,
@@ -67,7 +62,12 @@ class DriveData(Dataset):
         self.x_data = tor.from_numpy(np.asarray(self.xs,dtype=np.float32)).to(device)
         self.y_data = tor.from_numpy(np.asarray(self.ys,dtype=np.float32)).to(device)
 
-        
+        if normalize is not None:
+            Norm_x=Normalizator(self.x_data,tipo=normalize)
+            Norm_y=Normalizator(self.y_data,tipo=normalize)
+            self.x_data = Norm_x.normalize(self.x_data)
+            self.y_data = Norm_x.normalize(self.y_data)
+            
         self.lenx=self.xs.shape[0]
         
     def __getitem__(self,index):
@@ -103,25 +103,45 @@ class DriveData(Dataset):
        
         return x,y#,covariates
     
-    def normalize_gauss(X):
-        ''' Normalize to standard Gaussian distribution '''
-        self.X_m = np.mean(X, axis = 0)
-        self.X_s = np.std(X, axis = 0)   
-        return (X-self.X_m)/(self.X_s)
+class Normalizator(nn.Module):
+    def __init__(self, X, tipo='gauss'):
+        super().__init__()
+        self.tipo = tipo
+        
+        # Registrar buffers # si los quiero guardar en la red
+        #self.register_buffer('mean', None)
+        #self.register_buffer('std', None)
+        #self.register_buffer('min_val', None)
+        #self.register_buffer('max_val', None)
+        
+        if self.tipo == 'gauss':
+            self.normalize = self.normalize_gauss
+            self.desnormalize = self.desnormalize_gauss
+            self.media = torch.mean(X, dim=(0, 1))
+            self.std = torch.std(X, dim=(0, 1))
+            
+        elif self.tipo == 'minmax':
+            self.normalize = self.normalize_minmax
+            self.desnormalize = self.desnormalize_minmax
+            self.min_val = torch.min(X, dim=(0, 1))[0]
+            self.max_val = torch.max(X, dim=(0, 1))[0]
     
-    def desnormalize_gauss(Xnorm):
-        ''' Desnormalize Gaussian transformation '''
-        return self.X_m + self.X_s * Xnorm
-
-    def normalize_minmax(X):
-        ''' Normalize to 0,1 interval '''
-        self.x_mn = np.min(X, axis = 0)
-        self.x_mx = np.max(X, axis = 0)   
-        return (X-self.x_mn)/(self.x_mx-self.x_mn)
+    def normalizar_gauss(self, X):
+        '''Normalizar a distribución Gaussiana estándar'''
+        return (X - self.media) / self.std
     
-    def desnormalize_minmax(Xnorm):
-        ''' Desnormalize  '''
-        return self.x_mn+ (self.x_mx-self.x_mn) * X
+    def desnormalizar_gauss(self, Xnorm):
+        '''Desnormalizar transformación Gaussiana'''
+        return self.media + self.std * Xnorm
+        
+    def normalizar_minmax(self, X):
+        '''Normalizar al intervalo [0,1]'''
+        return (X - self.min_val) / (self.max_val - self.min_val)
+    
+    def desnormalizar_minmax(self, Xnorm):
+        '''Desnormalizar'''
+        return self.min_val + (self.max_val - self.min_val) * Xnorm  # ← Xnorm corregido
+    
     
 #-------------------------------------------------------------------    
     

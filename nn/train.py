@@ -32,6 +32,7 @@ def train(Net,train_loader,val_loader,conf):
         for i_batch, (input_dat,target_dat) in enumerate(train_loader):
 
             optimizer.zero_grad()
+            
             input_dat=input_dat.transpose(0,1)
             target_dat=target_dat.transpose(0,1)
             
@@ -87,7 +88,6 @@ def test(test_loader,Net,deterministic=True):
     ''' Produces a prediction assuming I have a single batch '''
     with torch.no_grad():
         for i_batch,  (input_dat,target_dat) in enumerate(test_loader):
-            print(input_dat.shape)
             input_dat=input_dat.transpose(0,1)
             target_dat=target_dat.transpose(0,1)
  

@@ -5,8 +5,129 @@
 #+OPTIONS: toc:nil
 #+STARTUP: inlineimages
 
+* Tareas
+
+** MPF para finanzas
+Asumo que tengo un conjunto de entradas en un espacio $(x^k_1,x^k_2)_{k=1}^{N_k}$ que corresponden a la serie de tiempos $k=1,N_k$, si ahora observo a $x^{N_k+1}_1$ quiero estimar $p(x^{N_k+1}_1^2|x^{N_k+1}_1, x^{1:N_k}_1,x^{1:N_k}_2)$.
+
+
+
+** Tabak funcion inversa
+Se puede realizar el scatterplot que estamos obteniendo de Tabak con el T-1 para ver si le peda  a la distribucion
+
+** Prediccion con redes neuronales
+Se puede usar la prediccion de la media y la varianza de x dado el activo z para establecer una estrategia similar a la de Tabak pero basada en redes neuronales.
+El unico problema seria como hacerlo para funcionar en una ventana de 60 dias?
+La seria va a estar asumiendo que los valores de los activos son estacionarios?
+Quizas solo entrenando permanentemente para que tenga muestras que son cercanas a la muestra nueva.
+** Prediccion de varios dias
+Enfoque de Predicción Directa:
+
+# La red predice el Z-Score en 4 días
+if (z_score_actual > 2.0 and 
+    prediccion_z_score_4d < 1.0 and  # Revertirá significativamente
+    prediccion_z_score_4d < z_score_actual):  # Dirección correcta
+    ENTRAR_POSICIÓN
+
+2. Enfoque de Probabilidad de Reversión:
+
+    Entrena la red para predecir: "Probabilidad de que |Z-Score| disminuya > 1.0 en 4 días"
+
+    Combina esta probabilidad con el Z-Score actual
+
+
+* Development
+
+** redes
+
+Como aplico una estrategia basada en redes. Debe ir calculando el z-score cada Nbeta_win+Njump dias y voy operando en los Njump.
+- Trabajo con tensores en torch de entrada. Puedo hacer todo el proceso de z-score con las variables normalizadas. 
+
+  Como detecto cuando debe haber reversion a la media?
+
+  Recomendacion de trabajar prediciendo directamente el z-score y usando de entrada:
+  
+  #+BEGIN_SRC shell :session :results output raw
+inputs = [
+    # 1. Z-Score actual (posición actual)
+    z_score_current,                 # (current_spread - spread_mean) / spread_std
+    
+    # 2. Momentum del Spread  
+    spread_change_1d,                # (spread_t - spread_t-1) / spread_t-1
+    spread_change_3d,                # Momentum corto
+    spread_change_5d,                # Momentum medio
+    
+    # 3. Velocidad de Reversión reciente
+    z_score_reversion_speed,         # Correlación entre z_score y cambios recientes
+]
+#+END_SRC
+
 * Codes
 
+
+** Como pruebo a Tabak
+Genero dos muestras correlacionadas
+
+** prediccion del periodo de reversion
+#+BEGIN_SRC python :session :results output
+class SpreadDataset(Dataset):
+    def __init__(self, spread_data, lookback=60, max_reversion_days=20):
+        self.spread_data = spread_data
+        self.lookback = lookback
+        self.max_reversion_days = max_reversion_days
+        self.samples = self._create_samples()
+    
+    def _calculate_z_score(self, spread_series):
+        return (spread_series - spread_series.mean()) / spread_series.std()
+    
+    def _find_reversion_period(self, current_idx, spread_values):
+        """Encuentra cuántos días hasta que el Z-Score revierte a < 1"""
+        current_spread = spread_values[current_idx]
+        current_z = self._calculate_z_score(
+            spread_values[current_idx - self.lookback:current_idx]
+        )[-1]  # Último Z-Score
+        
+        if abs(current_z) < 2.0:  # No es una señal clara
+            return self.max_reversion_days
+        
+        # Buscar reversión en los próximos días
+        for days_ahead in range(1, self.max_reversion_days + 1):
+            if current_idx + days_ahead >= len(spread_values):
+                return self.max_reversion_days
+            
+            future_window = spread_values[
+                current_idx + days_ahead - self.lookback:current_idx + days_ahead
+            ]
+            future_z = self._calculate_z_score(future_window)[-1]
+            
+            if abs(future_z) < 1.0:  # Revertió
+                return days_ahead
+        
+        return self.max_reversion_days
+    
+    def _create_samples(self):
+        samples = []
+        spread_values = self.spread_data.values
+        
+        for i in range(self.lookback, len(spread_values) - self.max_reversion_days):
+            # Input: secuencia de spread
+            input_seq = spread_values[i - self.lookback:i]
+            
+            # Target: días hasta reversión
+            target = self._find_reversion_period(i, spread_values)
+            
+            samples.append((input_seq, target))
+        
+        return samples
+    
+    def __len__(self):
+        return len(self.samples)
+    
+    def __getitem__(self, idx):
+        input_seq, target = self.samples[idx]
+        return (torch.FloatTensor(input_seq).unsqueeze(-1), 
+                torch.FloatTensor([target]))
+#+END_SRC
 
 ** covarianzas y correlacion
 #+BEGIN_SRC python :session :results output
@@ -95,7 +216,7 @@ Se puede pensar la metodologia como un expectation maximization? en algun sentid
 
 Puedo ir viendo como se mueven las particulas y ademas como se va reduciendo la parte de la cost function que tiene que ver con la independencia?
 
-** Copuas
+** Copulas
 
 
 

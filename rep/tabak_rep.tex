@@ -1,0 +1,68 @@
+\documentclass{myarticle}
+%\date{\today}
+\title{Problema de transporte de Monge del baricentro aplicado a series de tiempo de pares de activos en finanzas}
+\begin{document}
+
+\maketitle
+
+%\section{Teoria}
+En el mercado de valores, pueden existir pares de activos que estan altamente corelacionados entre si historicamente,  de tal manera que los retornos de los precios de los activos suelen mostrar coherencia, frecuentemente dentro de un mismo sector económico debido a que tienen common drivers.  El pairs trading es una estrategia cuantitativa market-neutral cuya premisa central es la hipótesis de reversión a la media: cuando los precios de estos activos experimentan una desviación transitoria, donde uno se encuentra sobrevaluado y el otro subvaluado, se espera que su spread o relacion convergerá hacia el equilibrio histórico.
+
+La implementación de la estrategia consiste en tomar una posición corta en el activo relativamente sobrevaluado y una posición larga en el subvaluado, buscando obtener ganancias en el restablecimiento del equilibrio historico de dicha relación, independientemente de la dirección del mercado.
+
+La metodología general comprende dos etapas: primero la identificación de un par de activos con una correlación significativa y un spread estacionario; en un segundo paso la detección de señales de trading, típicamente mediante un modelo de z-score que cuantifica los desequilibrios.
+
+Plantiemos este modelo formalmente. Dado un par de activos correlacionados, denotados como \( z \) y \( x \) (que pueden representar los precios de cierre de los activos o sus transformaciones logarítmicas), el objetivo es utilizar los valores de $z$ para predecir el comportamiento de \( x \). En un tiempo dado \( k \), dados los valores observados \( (z_k, x_k) \), el procedimiento consiste en inferir la distribución condicional \( p(x | z = z_k, z_{1..k-1},x_{1..k-1}) \) basada en los datos hist\'oricos. %a trav\'es de un conjunto de muestras.
+Posteriormente, se evalúa la posición que ocupa el valor actual \( x_k \) dentro de esta distribución, con el fin de cuantificar su plausabilidad.
+
+Se propone para cuantificar estos desequilibrios, modelar la densidad de probabilidad condicional de un activo financiero dado el valor del otro activo empleando la metodología establecida por Lipnick et al. (2025). Esta representación se construye a partir de muestras históricas de ambas series temporales, correspondientes a un período reciente para que la hip\'otesis de estacionaridad sea v\'alida.
+
+Siguiendo Lipnick et al. (2025), el objetivo es determinar un operador de transformación \( T \) que, aplicado a la variable \( x \) permita eliminar toda la variabilidad explicada por \( z \). La construcción de este mapa se plantea como un problema de optimización basado en el problema de transporte óptimo de Monge del baricentro  con dos condiciones:
+
+\[
+\min_{y = T(x,z)} \mathbb{E}_{\pi} \left[ c(x, y) \right]
+\]
+sujeto a la restricción de que la variable transformada \( y \) sea estadísticamente independiente de \( z \).
+
+%\ma{Representando las transformaciones de $z,y??$ en un espacio de funciones finito, se expresa como un problema adversarial para representar la independencia entre las dos variables.. }
+
+Una vez determinado el operador \( T \), este puede emplearse para muestrear de la distribución condicional \( p(x | z) \). Dado un conjunto de datos \( \{x_i, z_i\}_{i=1}^N \), se aplica la transformación para obtener las realizaciones de la variable independiente de $z$ \( \{ y^{(i)} = T(x_i, z_i)\}_{i=1}^N \). Para generar muestras condicionadas a un valor específico \( z_k \), dadas las realizaciones \( \{y^{(i)}\} \) y el valor del condicionante \( z_k \), se aplica la transformación inversa \( x_k^{(j)} = T^{-1}(y^{(j)}, z_k) \), obteniendose así \( N \) muestras \( \{x_k^{(j)}\}_{j=1}^N \) que representan la distribución de \( x \) condicionada a \( z = z_k \).
+
+Dado que se ha estimado la distribución condicional $p(x|z=z_k)\sim \{x_k^{(j)}\}_{j=1}^N$ el siguiente paso es evaluar la plausibilidad del valor observado $x_k$ bajo dicha distribución. Esto se cuantifica calculando su probabilidad relativa, podemos aplicar un método paramétrico o uno no-paramétrico:
+
+
+1.  Param\'etrico. Se calcula la media $\mu_k$ y varianza $\sigma_k$ empiricas a partir de las muestras $\{x_k^{(j)}\}_{j=1}^N$, basado en \'estas se determina si $x_k$ excede algun umbral $\Gamma$, $\abs{x_k-\mu_k}/\sigma_k > \Gamma$ disparando la se\~nal si esto ocurre.
+
+2. No param\'etrico. Dado el conjunto de \( N \) muestras \( \{x_k^{(j)}\} \) generadas a partir de \( p(x | z = z_k) \), se  aproxima el percentil empírico de \( x_k \) calculando la proporción de muestras que son menores o iguales a él:
+    \[
+    \hat{F}(x_k) = \frac{ \#\{ x_k^{(j)} \leq x_k \} }{N}
+    \]
+    Un percentil empírico \( \hat{F}(x_k) \) cercano a 0 o 1 indica que el valor observado se encuentra en las colas de la distribución predictiva, señalando un desbalance potencial.
+
+En esencia, el objetivo es determinar si \( x_k \) es una realización típica de \( p(x | z = z_k) \) o si, por el contrario, constituye una outlier estadístico, lo que en el contexto de pairs trading se interpretaría como una señal de desviación del par y si es asi una oportunidad de inversi\'on ya que esperamos retorne a su relacion hist\'orica.
+
+\vskip 1cm
+
+\noindent {\bf Referencia.}
+
+\noindent Lipnick, A.D., Tabak, E.G., Trigila, G., Wang, Y., Ye, X. and Zhao, W., 2025. The Monge optimal transport barycenter problem. {\em arXiv preprint} arXiv:2507.03669.
+
+\section{Variational Stein Descent Gradient applied to finantial time series}
+
+Asumo que tengo un conjunto de entradas en un espacio $(x^k_1,x^k_2)_{k=1}^{N_k}$ que corresponden a la serie de tiempos $k=1,N_k$, si ahora observo a $x^{N_k+1}_1$ quiero estimar $p(x^{N_k+1}_1|x^{N_k+1}_1, x^{1:N_k}_1,x^{1:N_k}_2)$.
+
+Voy a transformar todos mis muestras de la prior prior density que corresponde a $p(x_1,x_2|x^{1:N_k}_1,x^{1:N_k}_2)$ dada una observacion parcial $x^{N_k+1}_1$
+
+$\v x = (x_1,x_2)$, $H=(1,0)$, $\v y =(x_1,)$
+
+Hmmm no me sirve porque yo solo quiero tener la distribucion de $x_2$ no la conjunta. Quizas a partir de la conjunta y los kernels puedo estimar la marginalizada? 
+
+
+Puedo asumir algo mas secuencial en el cual voy aprendiendo de un paso de tiempo al siguiente pero voy a tener que asumir un modelo de evolucion de $x_2$.
+
+Podria asumir un modelo inverso, tengo inputs z, tengo ouputs x y lo que tengo que hacer es ir determinando los x, para lo cual tengo que tener definido el H, el cual podria ser una red neuronal.
+
+Entreno la red neuronal para que me de las relaciones de las medias $x=H(z)$, Luego puedo asumir que tengo una distribucion 
+
+
+\end{document}

@@ -5,7 +5,7 @@
                   Using moving average window / exponential mean averaging / kalman filter  Todos los tiempos. Single set of parameters. Compara dos experimentos.    
 '''
 import numpy as np, os, copy
-import matplotlib.pyplot as plt
+import my_pyplot as plt
 import matplotlib.gridspec as gridspec
 import copy
 from time import time
@@ -25,16 +25,16 @@ class cnf_cls:
 #    mtd = 'on'# 'kf' 'exp' 'on' 'off'
     tipo='log' #asset'#log' #'asset' # 'asset', 'return', 'log_return', 'log'
     mtd = 'ot2'# 'kf' 'exp' 'on' 'off'
-    Njump = 84
+    Njump = 84  # periodo en el que aplico la estrategia
     beta_win=121 #*121   #21
-    zscore_win=41 #11
+    zscore_win=41 #11 # periodo en el que promedio
     sigma_co=1.5 # thresold to buy
     sigma_ve=0.1 # thresold to sell
 #    nmax=None # number of companies to generate the pairs (-1 all, 10 for testing)
 #    nsel=100# 100 # number of best pairs to select
     linver_betaweight=0
 #    industry=['beverages'] #['oil'] # ['beverages']
-    fname=f'tmp/syn_pair_{mtd}_' # fig filename
+    fname=f'tmp/syn_ot2pair_{mtd}_' # fig filename
     shorten=0
 
 cnf_co = cnf_cls(); cnf = cnf_cls()
@@ -57,14 +57,13 @@ for ilast in range(cnf.beta_win+cnf.Njump,nt,cnf.Njump):
     print(iini,ilast,ilast-iini)
     
     x,y=ts[:,iini:ilast]
-    iini+=cnf.Njump
+    iini+=cnf.Njump 
 
     t0 = time()
     res = ar.inversion(x,y,cnf,shorten=cnf.shorten)
     res['asset_x']=x
     res['asset_y']=y
     res_l.append(res)
-
     res_co = ar.inversion(x,y,cnf_co,shorten=cnf.shorten)
     res_co_l.append(res_co)
 

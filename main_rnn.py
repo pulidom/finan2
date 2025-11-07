@@ -28,9 +28,9 @@ class cnf_cls:
     pathdat='dat/'
 #    tipo='asset' # 'asset', 'return', 'log_return', 'log'
 #    mtd = 'on'# 'kf' 'exp' 'on' 'off'
-    tipo='log' #asset'#log' #'asset' # 'asset', 'return', 'log_return', 'log'
+    tipo='asset'#log' #'asset' # 'asset', 'return', 'log_return', 'log'
     mtd = 'nn'# 'kf' 'exp' 'on' 'off'
-    n_train = 10_000
+    n_train = 20_000
     n_val = 5_000
     Njump = 10 # peque~no para el entrenamiento
     beta_win=121 #*121   #21
@@ -50,9 +50,9 @@ class cnf_cls:
 class cnf_train: 
     loss = lossfn.loss_fn #nn.MSELoss() #nn.logGaussLoss #SupervLoss # GaussLoss
     batch_size=cnf_cls.batch_size
-    n_epochs = 100
+    n_epochs = 200
     learning_rate = 1e-3
-    exp_dir = 'dat/rnn'
+    exp_dir = 'dat/rnn/'
     lvalidation = True 
     patience = 30
     sexp = 'syn_rnn'
@@ -112,20 +112,6 @@ x0,y0,nret0_x,nret0_y = utils.select_variables(ts[0],ts[1],tipo=cnf.tipo)
 ts = np.vstack([x0, y0])
 [loader_train, loader_val, loader_test] = create_dataloaders(ts,cnf)
 
-test_batch= next(iter(loader_test))
-in0,out0=test_batch
-print(in0.shape)
-figfile=cnf.fname+'data-test.png'
-fig, ax = plt.subplots(3,1,figsize=(7,7))
-fig, ax = plt.subplots(3,1,figsize=(7,7))
-ax[0].plot(in0[50])
-ax[0].plot(out0[50])
-ax[1].plot(in0[100])
-ax[1].plot(out0[100])
-ax[2].plot(in0[200])
-ax[2].plot(out0[200])
-plt.tight_layout()
-fig.savefig(figfile)
 # Neural net
 Net = net.Net(cnf_net)
 # Training
@@ -133,39 +119,20 @@ best_net,loss_t,loss_v = train.train( Net,loader_train,loader_val,cnf_train )
 
 
 for i_batch, (input_dat,target_dat) in enumerate(loader_test):
-
     mu_pred,sigma_pred = best_net.train_step(input_dat)
 
-#print(mu.shape)
-#quit()
 ### reseteo del Njump
 #cnf.Njump=84 
 
 # hago todas las predicciones
 #mu_pred,sigma_pred,target = train.test(loader_test,best_net,deterministic=True)
 
-mu_pred = mu_pred.cpu().detach().numpy()
-sigma_pred = sigma_pred.cpu().detach().numpy()
-target_dat = target_dat.cpu().detach().numpy()
-figfile=cnf.fname+'prediction.png'
-t=np.arange(mu_pred.shape[1])
-fig, ax = plt.subplots(3,1,figsize=(7,7))
-ax[0].plot(t,mu_pred[50])
-ax[0].plot(t,target_dat[50])
-ax[1].plot(t,mu_pred[100])
-ax[1].plot(t,target_dat[100])
-ax[2].plot(t,mu_pred[200])
-ax[2].plot(t,target_dat[200])
-plt.tight_layout()
-fig.savefig(figfile)
-plt.close()
-
 plt.figure(figsize=(6,4))
 plt.plot(range(len(loss_t)),loss_t,color='C0')
 plt.plot(range(len(loss_v)),loss_v,color='C1')
 plt.xlabel('Epoch');
 plt.ylabel('Loss');
-plt.savefig(conf.exp_dir+f'/loss.png')
+plt.savefig(cnf.fname+f'loss.png')
 
 print('llego')
 quit()
@@ -272,5 +239,24 @@ quit()
 #plt.tight_layout()
 #fig.savefig(figfile)
 #plt.close()
+
+mu = mu_pred.transpose(0,1).cpu().detach().numpy()
+sigma = sigma_pred.transpose(0,1).cpu().detach().numpy()
+target_dat = target_dat.transpose(0,1).cpu().detach().numpy()
+figfile=cnf.fname+'prediction.png'
+t=np.arange(mu_pred.shape[1])
+fig, ax = plt.subplots(3,1,figsize=(7,7))
+ax[0].fill_between(t,mu[50] - sigma[50], mu[50] + sigma[50], color='gray', alpha=0.2)
+ax[0].plot(t,mu[50])
+ax[0].plot(t,target_dat[50])
+ax[1].fill_between(t,mu[100] - sigma[100], mu[100] + sigma[100], color='gray', alpha=0.2)
+ax[1].plot(t,mu[100])
+ax[1].plot(t,target_dat[100])
+ax[2].fill_between(t,mu[200] - sigma[200], mu[200] + sigma[200], color='gray', alpha=0.2)
+ax[2].plot(t,mu[200])
+ax[2].plot(t,target_dat[200])
+plt.tight_layout()
+fig.savefig(figfile)
+plt.close()
 
 
