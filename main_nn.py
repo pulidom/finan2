@@ -47,6 +47,7 @@ nt= 10*252
 ts = load_sts(nt=nt,lopt=2,regime_length=nt,seed=43)#252)
 
 ts=ts[:2]
+### falta normalizar las series
 
 model = train(ts[0,:2000],ts[1,:2000],ts[0,2000:],ts[1,2000:],'cpu',fcnn.emse_loss)
 

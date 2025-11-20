@@ -1,0 +1,138 @@
+* Project
+#+TITLE: Development notes
+#+STARTUP: hidestars
+#+STARTUP: overview
+#+LATEX_CLASS: myarticle
+#+OPTIONS: toc:nil
+#+STARTUP: inlineimages
+* ---------------------------
+** Iniciado el 2025-11-19-0821
+* Reporte
+
+* Experimento 
+
+** Metadata
+#+BEGIN_SRC shell :results output :exports both
+echo "=== Información Git ==="
+git rev-parse --short HEAD
+git branch --show-current
+git status --short
+echo "=== Fin información Git ==="
+#+END_SRC
+
+Virtual environment set up
+#+BEGIN_SRC shell :results output
+cd ~/tu_proyecto
+source venv/bin/activate
+#+END_SRC
+
+
+
+
+** Codigo
+
+#+BEGIN_SRC python :results output :session main
+import numpy as np
+import matplotlib.pyplot as plt
+import torch
+from torch.utils import data 
+from torch.autograd import Variable
+import torch.nn.functional as F
+#+END_SRC
+
+Genero los datos
+
+#+BEGIN_SRC python :session :results output raw
+class DriveData(Dataset):
+    "para utilizarse con el DataLoader de pytorch "
+    def __init__(self,dat,n_samples=10000,device='cpu',normalize=False):
+
+        self.xs,self.ys=dat #Sampler(n_samples)
+
+        self.x_data = torch.from_numpy(np.asarray(self.xs,dtype=np.float32)).to(device)
+        self.y_data = torch.from_numpy(np.asarray(self.ys,dtype=np.float32)).to(device)
+
+        if normalize is not None:
+            Norm_x=Normalizator(self.x_data,tipo=normalize)
+            Norm_y=Normalizator(self.y_data,tipo=normalize)
+            self.x_data = Norm_x.normalize(self.x_data)
+            self.y_data = Norm_y.normalize(self.y_data)
+        
+        self.lenx=self.xs.shape[0]
+        
+    def __getitem__(self,index):
+        return self.x_data[index], self.y_data[index]    
+    def __len__(self):
+        return self.lenx
+    def getnp(self):
+        return self.xs, self.ys
+
+class Normalizator(nn.Module):
+    def __init__(self, X, tipo='gauss'):
+        super().__init__()
+        self.tipo = tipo
+        
+        # Registrar buffers # si los quiero guardar en la red
+        #self.register_buffer('mean', None)
+        #self.register_buffer('std', None)
+        #self.register_buffer('min_val', None)
+        #self.register_buffer('max_val', None)
+        
+        if self.tipo == 'gauss':
+            self.normalize = self.normalize_gauss
+            self.desnormalize = self.desnormalize_gauss
+            self.media = torch.mean(X, dim=(0, 1))
+            self.std = torch.std(X, dim=(0, 1))
+        elif self.tipo == 'minmax':
+            self.normalize = self.normalize_minmax
+            self.desnormalize = self.desnormalize_minmax
+            self.min_val = torch.min(X, dim=(0, 1))[0]
+            self.max_val = torch.max(X, dim=(0, 1))[0]
+    
+    def normalize_gauss(self, X):
+        return (X - self.media) / self.std
+    
+    def desnormalize_gauss(self, Xnorm):
+        return self.media + self.std * Xnorm
+        
+    def normalize_minmax(self, X):
+        return (X - self.min_val) / (self.max_val - self.min_val)
+    
+    def desnormalize_minmax(self, Xnorm):
+        return self.min_val + (self.max_val - self.min_val) * Xnorm  # ← Xnorm corregido
+
+def sin_sampler(n_samples):
+    x = np.random.random(n_samples)
+    eps = 0.2 * np.random.normal(scale=1.0, size=n_samples) * (1- 0.6*np.cos(x*2*np.pi))
+    y = 2*np.sin(2*np.pi*x) + eps
+    return x,y
+
+#+END_SRC
+
+
+#+BEGIN_SRC python :session :results output raw
+device='cpu'
+normalize='minmax' # uniform in z for regression / gaussian for assets
+dat_spec = {'train' : ('train.npz', n_train, batch_size, True),
+            'val' : ('val.npz', n_val, n_val, False),
+            'test' : ('test.npz', n_val, n_val, False),}
+
+for dat_name in dat_type:
+
+    #file, nt, batch_size, shuffle = dat_spec[dat_name]
+    file, nt, batch_size, shuffle = dat_spec[dat_name]
+    
+    #print(conf.exp_dir + '/' + file, nt)
+    #dat = Mdl.read_ts(conf.exp_dir + '/' + file, nt=nt)
+
+    dset = DriveData(dat, device = device, normalize = normalize)
+
+    loader = data.DataLoader(dset, batch_size=batch_size, shuffle=shuffle)
+    loaders.append(loader)
+
+#layers=np.array([2*nwin+1,64,32,2])
+layers=np.array([1,64,32,2])
+activation=nn.ReLU()
+NNmdl = mynn.NNmodel(layers,activation).to(device)
+
+#+END_SRC

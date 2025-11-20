@@ -18,12 +18,14 @@ def emse_loss(input, target):
     # predicted y        is input[:,0]
     #    actual variance is target[:,1] - estimated here
     # predicted variance is input[:,0]
-    
+
+    augtarget=torch.zeros((target.shape[0],2),device=target.device,requires_grad=False)
     # Use 'requires_grad == False' to prevent PyTorch from trying to differentiate 'target'
-    target[:,1] = Variable((input[:,0].data - target[:,0].data)**2, 
+    augtarget[:,0] = target[:,0].data
+    augtarget[:,1] = Variable((input[:,0].data - target[:,0].data)**2, 
                            requires_grad=False)  
     # Return MSE loss 
-    return F.mse_loss(input, target)
+    return F.mse_loss(input, augtarget)
 
 
 def train(x_train,y_train,x_val,y_val,device,loss):
