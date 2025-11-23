@@ -223,3 +223,198 @@ def interpolate_barycenter(z_current, cached_Z, cached_y):
         return y_sorted[-1]
     else:
         return np.interp(z_current, Z_sorted, y_sorted)
+
+
+
+def ot_barycenter_solver_gaussian(x, z, n_centers_x=10, n_centers_z=10, 
+                                   bandwidth_x=0.1, bandwidth_z=0.1, 
+                                   n_iter=1000, verbose=False):
+    """
+    Resuelve el problema de baricentro OT usando kernels gaussianos para X y Z.
+    
+    """
+    n = len(x)
+    y = x.copy()
+    y0 = y.copy()
+    
+    # Espacio funcional F para z (fijo)
+    Qz, Bz, centers_z = initialize_functional_spaces_gaussian(
+        z, n_centers=n_centers_z, bandwidth=bandwidth_z
+    )
+    
+    # Parámetros
+    sigma_star = 0.2 / np.sqrt(n)
+    alpha = 0.0025
+    delta = 0.1
+    
+    theta = 1.1
+    tau = 0.5
+    kappa = 0.5
+    eta_prev = 1e-2
+    
+    # Espacio funcional G para y0 (inicial)
+    Qy0, By0, centers_x0 = initialize_functional_spaces_gaussian(
+        y0, n_centers=n_centers_x, bandwidth=bandwidth_x
+    )
+    centers_x = centers_x0.copy()
+    
+    for iter in range(n_iter):
+        # Evaluar G(y) usando los centros fijos de esta etapa
+        G_current = gaussian_kernel(y.reshape(-1, 1), centers_x, bandwidth_x)
+        G_current_centered = G_current - np.mean(G_current, axis=0)
+        Qy = G_current_centered @ By0
+        
+        # Matriz A y SVD
+        A = Qz.T @ Qy / n
+        U, s, Vt = svd(A, full_matrices=False)
+        
+        # Gradiente del costo de transporte
+        cost_grad = y - x
+        
+        # Gradiente del término de penalización
+        penalty_grad = np.zeros_like(y)
+        
+        for k in range(len(s)):
+            a_k = U[:, k]
+            b_k = Vt[k, :]
+            
+            # f_k(z) = Q_z @ a_k
+            f_k = Qz @ a_k
+            
+            # ∇g_k(y) usando derivada del kernel gaussiano
+            # ∂/∂y_i [exp(-||y_i - c_j||²/(2h²))] = -(y_i - c_j)/h² * exp(...)
+            y_reshaped = y.reshape(-1, 1)
+            K = gaussian_kernel(y_reshaped, centers_x, bandwidth_x)  # (n, n_centers)
+            
+            # Derivada: dK/dy = -(y - c_j)/h² * K
+            dK = -(y_reshaped - centers_x.T) / (bandwidth_x**2) * K  # (n, n_centers)
+            
+            # ∇g_k = dK @ (B @ b_k)
+            dg_k = (dK @ (By0 @ b_k)).squeeze()
+            
+            penalty_grad += 2 * s[k] * f_k * dg_k
+        
+        # Cálculo adaptativo de lambda
+        num = np.sqrt(np.mean(cost_grad**2) + 0.1 * np.var(x))
+        
+        penalty_grad_tilde = np.zeros_like(y)
+        for k in range(len(s)):
+            sigma_tilde = min(s[k], sigma_star)
+            a_k = U[:, k]
+            b_k = Vt[k, :]
+            f_k = Qz @ a_k
+            
+            y_reshaped = y.reshape(-1, 1)
+            K = gaussian_kernel(y_reshaped, centers_x, bandwidth_x)
+            dK = -(y_reshaped - centers_x.T) / (bandwidth_x**2) * K
+            dg_k = (dK @ (By0 @ b_k)).squeeze()
+            
+            penalty_grad_tilde += sigma_tilde * f_k * dg_k
+        
+        denom = np.sqrt(np.mean(penalty_grad_tilde**2))
+        lambda_val = 0.5 * num / (denom + 1e-12)
+        
+        # Gradiente total
+        G = cost_grad + lambda_val * penalty_grad
+        
+        # Backtracking line search
+        eta = theta * eta_prev
+        L_current = np.sum((y - x)**2) / (2*n) + lambda_val * np.sum(s**2)
+        
+        while True:
+            y_new = y - eta * G
+            
+            G_new = gaussian_kernel(y_new.reshape(-1, 1), centers_x, bandwidth_x)
+            G_new_centered = G_new - np.mean(G_new, axis=0)
+            Qy_new = G_new_centered @ By0
+            A_new = Qz.T @ Qy_new / n
+            _, s_new, _ = svd(A_new, full_matrices=False)
+            
+            L_new = np.sum((y_new - x)**2) / (2*n) + lambda_val * np.sum(s_new**2)
+            
+            if L_new <= L_current - kappa * eta * np.mean(G**2):
+                break
+            eta *= tau
+        
+        eta_prev = eta
+        y = y_new
+        
+        if verbose and iter % 1000 == 0:
+            dep = compute_dependence(y, z)
+            print(f"Iter {iter}: dep={dep:.6f}, max_s={np.max(s):.6f}, "
+                  f"lambda={lambda_val:.3e}, eta={eta:.3e}")
+        
+        # Criterio de reinicio de etapa
+        if np.sum((y - y0)**2) > delta * np.sum((y0 - np.mean(y0))**2):
+            if verbose:
+                print(f"→ Reinicio de etapa en iter {iter}")
+            y0 = y.copy()
+            Qy0, By0, centers_x = initialize_functional_spaces_gaussian(
+                y0, n_centers=n_centers_x, bandwidth=bandwidth_x
+            )
+        
+        # Criterio de convergencia
+        if np.all(s < sigma_star):
+            grad_norm = np.mean(G**2)
+            if grad_norm < alpha * np.var(x):
+                if verbose:
+                    print(f"Convergió en iteración {iter}")
+                break
+    
+    return y, s, U, Vt, Qz, Bz, Qy0, By0, centers_x, centers_z, lambda_val, bandwidth_x, bandwidth_z
+
+
+def simulate_conditional_gaussian(y_samples, z_target, Qz, Bz, By, U, Vt, s, 
+                                   centers_x, centers_z, lambda_final, 
+                                   bandwidth_x=0.1, bandwidth_z=0.1):
+    """
+    Invierte el mapa T usando kernels gaussianos:
+    X(y, z) = y + 2λ Σ_k σ_k ∇_y σ_k|_{y,z}
+    donde ∇_y σ_k = f_k(z) ∇g_k(y)
+    """
+    n_samples = len(y_samples)
+    
+    # 1. Calcular f_k(z_target) para todos los k
+    z_target_2d = np.array(z_target).reshape(1, -1)
+    F_target = gaussian_kernel(z_target_2d, centers_z, bandwidth_z)
+    
+    # Centrar (asumiendo media cero para simplificar)
+    F_target_centered = F_target - np.mean(F_target)
+    
+    # Proyectar al espacio ortogonal
+    Qz_target = F_target_centered @ Bz  # [1, n_z]
+    
+    # Calcular f_k(z_target) = (Qz_target @ a_k)
+    f_k_values = []
+    for k in range(len(s)):
+        a_k = U[:, k]
+        f_k = float(Qz_target @ a_k)
+        f_k_values.append(f_k)
+    
+    # 2. Para cada y_i, calcular X(y_i, z_target)
+    x_samples = np.zeros(n_samples)
+    
+    for i, y_val in enumerate(y_samples):
+        x_i = y_val
+        
+        # Evaluar kernel y su derivada en y_val
+        y_reshaped = np.array([[y_val]])
+        K = gaussian_kernel(y_reshaped, centers_x, bandwidth_x)  # (1, n_centers)
+        
+        # dK/dy = -(y - c_j)/h² * K
+        dK = -(y_reshaped - centers_x.T) / (bandwidth_x**2) * K  # (1, n_centers)
+        
+        for k in range(len(s)):
+            b_k = Vt[k, :]  # (n_centers,)
+            
+            # ∇g_k(y) = dK @ (B @ b_k)
+            grad_g_k = float(dK @ (By @ b_k))
+            
+            # ∇σ_k = f_k(z) * ∇g_k(y)
+            grad_sigma_k = f_k_values[k] * grad_g_k
+            
+            x_i += 2 * lambda_final * s[k] * grad_sigma_k
+        
+        x_samples[i] = x_i
+    
+    return x_samples
