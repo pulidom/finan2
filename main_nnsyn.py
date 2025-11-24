@@ -37,7 +37,7 @@ class conf:
     lvalidation = True
     warmup_epochs = 20
     layers = np.array([1, 64, 32,2])
-    activation = nn.GELU() #Tanh() #GELU()
+    activation = nn.GELU() #nn.ReLU() #nn.GELU() #nn.Tanh() 
 
 nt= n_train + 2 * n_val
 ts = load_sts(nt=nt,lopt=0,regime_length=nt,seed=43)
@@ -57,7 +57,6 @@ for dat_name in dat_type:
     loaders.append(loader)
 
 
-
 NNmdl = nns.NNmodel(conf.layers, conf.activation).to(device)
 NNmdl = nns.BoundaryNet(NNmdl, boundary_width=0.1,min_sigma=0.1)
 NNmdl.apply(nns.init_weights)
@@ -67,7 +66,7 @@ best_net, loss_t, loss_v = nns.train(NNmdl, loaders[0], loaders[1], conf)
 
 # Testing Dataset
 for i_batch, (input_test,target_test) in enumerate(loaders[2]):
-    pred_test = best_net(input_test)#,10)
+    pred_test = best_net(input_test)
 
 # Smooth prediction
 train_x, train_y = xydat[0]
@@ -77,6 +76,11 @@ x_smo=np.linspace(min(train_x), max(train_x),300)
 x_smo = torch.from_numpy(np.asarray(x_smo[:,None],dtype=np.float32)).to(device)
 pred_smo = best_net(x_smo)#,10)
 
+def zscore(z,x):
+    xpred = best_net(z)
+    zsc= (x-xpred.T[0][:,None])/xpred.T[1][:,None]
+    return zsc 
+z_score= zscore(dset.x_data,dset.y_data)
 
 def loss_plot(loss_t,loss_v):
     plt.figure(figsize=(6,4))
@@ -106,3 +110,10 @@ def pred_plot(input_dat,target_dat,pred,x_smo,pred_smo):
     
 loss_plot(loss_t,loss_v)
 pred_plot(input_test,target_test,pred_test,x_smo,pred_smo)
+
+plt.figure(figsize=(8,4))
+z_score=z_score.cpu().detach().numpy()
+plt.plot(z_score)
+plt.xlabel(r'$t$');
+plt.ylabel(r'$z-score$');
+plt.savefig(f'{conf.exp_dir}/zcore.png')
