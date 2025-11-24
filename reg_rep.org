@@ -1,0 +1,697 @@
+* Regression experiment using FC neural networks
+#+TITLE: Development notes
+#+STARTUP: hidestars
+#+STARTUP: overview
+#+LATEX_CLASS: myarticle
+#+OPTIONS: toc:nil
+#+STARTUP: inlineimages
+#+PROPERTY: header-args:python :async yes :session *default*
+#+PROPERTY: header-args:python :results output raw replace
+* ---------------------------
+** Iniciado el 2025-11-23-1028
+** Metadata
+#+BEGIN_SRC shell :results output :exports both
+echo "=== Información Git ==="
+git rev-parse --short HEAD
+git branch --show-current
+git status --short
+echo "=== Fin información Git ==="
+#+END_SRC
+
+#+RESULTS:
+: === Información Git ===
+: fb214a2
+: master
+: === Fin información Git ===
+
+* Experimento N=3000
+** Carga las librerias
+#+BEGIN_SRC python :session :results output raw 
+import numpy as np
+import my_pyplot as plt
+import torch, os, copy
+from torch import nn
+from torch.utils.data import Dataset
+from torch.utils import data 
+import nns
+#+END_SRC
+
+#+RESULTS:
+
+** Configuracion
+#+BEGIN_SRC python :session :results output raw
+nns.set_seed(42)
+
+device='cpu'
+n_train=10000
+n_val=5000
+batch_size=64
+normalize='minmax' # uniform in z for regression / gaussian for assets
+dat_type=['train','val','test']
+dat_spec = {'train' : ('train.npz', n_train, batch_size, True),
+            'val' : ('val.npz', n_val, n_val, False),
+            'test' : ('test.npz', n_val, n_val, False),}
+
+class conf:
+    loss=nns.mixed_loss #eMSE_loss
+    learning_rate=1e-3
+    n_epochs= 60
+    patience= 30
+    sexp='exp1'
+    exp_dir='./tmp/'
+    lvalidation=True
+
+#+END_SRC
+
+#+RESULTS:
+
+** Entrenamiento e inferencias
+
+Con 3000 datos
+
+#+BEGIN_SRC python :session :results output raw replace :async
+layers = np.array([1, 64, 32,2])
+activation = nn.GELU() #Tanh() #GELU()
+NNmdl = nns.NNmodel(layers, activation).to(device)
+#NNmdl.apply(nns.init_weights)
+
+# Generate datasets
+xydat=[]
+loaders=[]
+for dat_name in dat_type:
+    file, nt, batch_size, shuffle = dat_spec[dat_name]
+    dat = nns.sin_sampler(nt)
+    dset = nns.DriveData(dat, device = device, normalize = normalize)
+    loader = data.DataLoader(dset, batch_size=batch_size, shuffle=shuffle)
+    loaders.append(loader)
+
+# Training
+best_net, loss_t, loss_v = nns.train(NNmdl, loaders[0], loaders[1], conf)
+
+# Testing Dataset
+for i_batch, (input_test,target_test) in enumerate(loaders[2]):
+    pred_test = best_net(input_test)#,10)
+
+# Smooth prediction
+x_smo=np.linspace(0,1,500)
+x_smo = torch.from_numpy(np.asarray(x_smo[:,None],dtype=np.float32)).to(device)
+pred_smo = best_net(x_smo)#,10)
+
+#+END_SRC
+
+#+RESULTS:
+
+
+
+** Plots
+
+#+BEGIN_SRC python :session :results output raw replace
+
+def loss_plot(loss_t,loss_v):
+    plt.figure(figsize=(6,4))
+    plt.plot(range(len(loss_t)),loss_t,label='Training')#,color='C0')
+    plt.plot(range(len(loss_v)),loss_v,label='Testing')#,color='C1')
+    plt.xlabel('Epoch');
+    plt.ylabel('Loss');
+    plt.legend()
+    plt.savefig(f'{conf.exp_dir}/loss.png')
+    
+def pred_plot(input_dat,target_dat,pred,x_smo,pred_smo):
+    input_dat=input_dat.cpu().detach().numpy()
+    target_dat=target_dat.cpu().detach().numpy()
+    pred=pred.cpu().detach().numpy()
+    pred_smo=pred_smo.cpu().detach().numpy()
+    x_smo=x_smo.cpu().detach().numpy()
+
+    plt.figure(figsize=(8,4))
+    plt.plot(input_dat,target_dat, '.',alpha=0.3,label='Target')
+#    plt.plot(input_dat,pred, '.',alpha=0.3,label='Prediction')
+    plt.plot(x_smo,pred_smo.T[0])#, '.')
+    plt.fill_between(x_smo.T[0],pred_smo.T[0] -  2* pred_smo.T[1], pred_smo.T[0] + 2* pred_smo.T[1], color='gray', alpha=0.2)
+    plt.xlabel(r'$z$');
+    plt.ylabel(r'$x$');
+    plt.savefig(f'{conf.exp_dir}/prediction.png')
+ 
+#+END_SRC
+
+#+RESULTS:
+
+* Results experiment 
+** N=10000
+#+BEGIN_SRC python :session :results output raw
+loss_plot(loss_t,loss_v)
+pred_plot(input_test,target_test,pred_test,x_smo,pred_smo)
+#+END_SRC
+
+#+RESULTS:
+Saving to
+[[file:./tmp//loss.png]]
+Convergencia
+
+
+
+[[file:./tmp//prediction.png]]
+
+** N=500
+Con 500 datos
+
+#+BEGIN_SRC python :session :results output raw replace :async
+dat_spec['train'] = ('train.npz', 500, batch_size, True)
+dat_spec['val'] = ('val.npz', 500, 500, False)
+
+# Generate datasets
+xydat=[]
+loaders=[]
+for dat_name in dat_type:
+    file, nt, batch_size, shuffle = dat_spec[dat_name]
+    dat = nns.sin_sampler(nt)
+    dset = nns.DriveData(dat, device = device, normalize = normalize)
+    loader = data.DataLoader(dset, batch_size=batch_size, shuffle=shuffle)
+    loaders.append(loader)
+
+NNmdl = nns.NNmodel(layers, activation).to(device)
+conf.learning_rate=1e-2
+
+# Training
+best_net_500, loss_t_500, loss_v_500 = nns.train(NNmdl, loaders[0], loaders[1], conf)
+
+# Testing Dataset
+for i_batch, (input_test,target_test) in enumerate(loaders[2]):
+    pred_test_500 = best_net_500(input_test)#,10)
+
+# Smooth prediction
+pred_smo_500 = best_net_500(x_smo)#,10)
+
+#+END_SRC
+
+#+RESULTS:
+0 de 60
+cost train 0.3681041896343231
+time:  0.004808187484741211
+cost val:  0.153967946767807
+1 de 60
+cost train 2640392704.0
+time:  0.01529836654663086
+cost val:  1414382592.0
+2 de 60
+cost train 2802366208.0
+time:  0.02304363250732422
+cost val:  3167662080.0
+3 de 60
+cost train 4432334336.0
+time:  0.030829429626464844
+cost val:  3667567360.0
+4 de 60
+cost train 4563818496.0
+time:  0.03808999061584473
+cost val:  3451227904.0
+5 de 60
+cost train 4132749824.0
+time:  0.04610419273376465
+cost val:  4043378432.0
+6 de 60
+cost train 4781407744.0
+time:  0.053281545639038086
+cost val:  4151086848.0
+7 de 60
+cost train 4658768896.0
+time:  0.061428070068359375
+cost val:  4494398976.0
+8 de 60
+cost train 4624834048.0
+time:  0.06950879096984863
+cost val:  4947936256.0
+9 de 60
+cost train 4891071488.0
+time:  0.07741522789001465
+cost val:  4108178176.0
+10 de 60
+cost train 3871273472.0
+time:  0.08507418632507324
+cost val:  4269451264.0
+11 de 60
+cost train 3865499136.0
+time:  0.09313344955444336
+cost val:  4321353216.0
+12 de 60
+cost train 3842869248.0
+time:  0.10059404373168945
+cost val:  4178560768.0
+13 de 60
+cost train 3670363136.0
+time:  0.10772252082824707
+cost val:  3904168192.0
+14 de 60
+cost train 3327168768.0
+time:  0.11545610427856445
+cost val:  3607913216.0
+15 de 60
+cost train 3065715968.0
+time:  0.12489938735961914
+cost val:  3381255936.0
+16 de 60
+cost train 2852126976.0
+time:  0.1326446533203125
+cost val:  3205766400.0
+17 de 60
+cost train 2680823552.0
+time:  0.13994479179382324
+cost val:  3078140672.0
+18 de 60
+cost train 2549754880.0
+time:  0.14768433570861816
+cost val:  2982308352.0
+19 de 60
+cost train 2452246272.0
+time:  0.1559138298034668
+cost val:  2891305984.0
+20 de 60
+cost train 2351150336.0
+time:  0.1638627052307129
+cost val:  2779598592.0
+21 de 60
+cost train 2228694784.0
+time:  0.17042326927185059
+cost val:  2680294144.0
+22 de 60
+cost train 2133983104.0
+time:  0.17803573608398438
+cost val:  2520605952.0
+23 de 60
+cost train 1954441472.0
+time:  0.18635296821594238
+cost val:  1856848512.0
+24 de 60
+cost train 1438855424.0
+time:  0.1942272186279297
+cost val:  2970.822509765625
+25 de 60
+cost train 2221.27294921875
+time:  0.20221328735351562
+cost val:  7.129105091094971
+26 de 60
+cost train 6.017012596130371
+time:  0.21003460884094238
+cost val:  2.761580467224121
+27 de 60
+cost train 2.5925207138061523
+time:  0.21764898300170898
+cost val:  1.7873597145080566
+28 de 60
+cost train 1.8097178936004639
+time:  0.22570323944091797
+cost val:  1.4308903217315674
+29 de 60
+cost train 1.5154157876968384
+time:  0.23291397094726562
+cost val:  1.2803213596343994
+30 de 60
+cost train 1.3874719142913818
+time:  0.24126553535461426
+cost val:  1.22122323513031
+the best validation loss is: 0.153967946767807
+2815d99fc12a46c70fa0382d22ee89c3
+0 de 60
+cost train 0.3734588921070099
+time:  0.006109952926635742
+cost val:  0.23761585354804993
+1 de 60
+cost train 3236618240.0
+time:  0.01602935791015625
+cost val:  2274743552.0
+2 de 60
+cost train 3739650048.0
+time:  0.022740840911865234
+cost val:  2972904192.0
+3 de 60
+cost train 4412912128.0
+time:  0.030854225158691406
+cost val:  3716080384.0
+4 de 60
+cost train 5302503936.0
+time:  0.038865089416503906
+cost val:  3623284736.0
+5 de 60
+cost train 4482662912.0
+time:  0.04793882369995117
+cost val:  4135996160.0
+6 de 60
+cost train 4243189760.0
+time:  0.0549626350402832
+cost val:  4969641472.0
+7 de 60
+cost train 4816283648.0
+time:  0.06289887428283691
+cost val:  4911933440.0
+8 de 60
+cost train 5092212224.0
+time:  0.07022833824157715
+cost val:  5482345984.0
+9 de 60
+cost train 6455472640.0
+time:  0.0775759220123291
+cost val:  6189107200.0
+10 de 60
+cost train 7187142656.0
+time:  0.08655810356140137
+cost val:  6752234496.0
+11 de 60
+cost train 7126006784.0
+time:  0.09327030181884766
+cost val:  7877651968.0
+12 de 60
+cost train 7612974080.0
+time:  0.10080718994140625
+cost val:  8425246208.0
+13 de 60
+cost train 7991456256.0
+time:  0.10745382308959961
+cost val:  8475296256.0
+14 de 60
+cost train 8421178368.0
+time:  0.11290216445922852
+cost val:  8995185664.0
+15 de 60
+cost train 9454076928.0
+time:  0.11972475051879883
+cost val:  9773331456.0
+16 de 60
+cost train 10135334912.0
+time:  0.12773537635803223
+cost val:  10762456064.0
+17 de 60
+cost train 10497647616.0
+time:  0.13390398025512695
+cost val:  11697393664.0
+18 de 60
+cost train 10979714048.0
+time:  0.1400754451751709
+cost val:  11765842944.0
+19 de 60
+cost train 11216058368.0
+time:  0.14579319953918457
+cost val:  11639738368.0
+20 de 60
+cost train 11686842368.0
+time:  0.1533513069152832
+cost val:  12163858432.0
+21 de 60
+cost train 12499010560.0
+time:  0.1596686840057373
+cost val:  13135349760.0
+22 de 60
+cost train 13048503296.0
+time:  0.16661715507507324
+cost val:  14198032384.0
+23 de 60
+cost train 13592471552.0
+time:  0.17455506324768066
+cost val:  14439825408.0
+24 de 60
+cost train 13847981056.0
+time:  0.1823887825012207
+cost val:  14406003712.0
+25 de 60
+cost train 14223469568.0
+time:  0.1902923583984375
+cost val:  14950056960.0
+26 de 60
+cost train 14821818368.0
+time:  0.19855523109436035
+cost val:  16018966528.0
+27 de 60
+cost train 15340903424.0
+time:  0.2073378562927246
+cost val:  16896992256.0
+28 de 60
+cost train 15836420096.0
+time:  0.21465325355529785
+cost val:  16821277696.0
+29 de 60
+cost train 16052671488.0
+time:  0.22135043144226074
+cost val:  16707931136.0
+30 de 60
+cost train 16387151872.0
+time:  0.22904276847839355
+cost val:  17290559488.0
+the best validation loss is: 0.23761585354804993
+ab536dda02740a200bc42647ec01b323
+0 de 60
+cost train 0.5591182112693787
+time:  0.005686521530151367
+cost val:  0.26788070797920227
+1 de 60
+cost train 0.4497228264808655
+time:  0.030527830123901367
+cost val:  0.1514693647623062
+2 de 60
+cost train 0.1579364389181137
+time:  0.17122530937194824
+cost val:  0.06313247978687286
+3 de 60
+cost train 0.05935540795326233
+time:  0.19492864608764648
+cost val:  0.03957188129425049
+4 de 60
+cost train 0.03583451732993126
+time:  0.22075843811035156
+cost val:  0.057418372482061386
+5 de 60
+cost train 0.05399761721491814
+time:  0.24215960502624512
+cost val:  0.07307513058185577
+6 de 60
+cost train 0.06978994607925415
+time:  0.265322208404541
+cost val:  0.06060684844851494
+7 de 60
+cost train 0.05756907910108566
+time:  0.40066027641296387
+cost val:  0.023562833666801453
+8 de 60
+cost train 0.020619399845600128
+time:  0.4258410930633545
+cost val:  -0.024963542819023132
+9 de 60
+cost train -0.028338000178337097
+time:  0.44768810272216797
+cost val:  -0.07589274644851685
+10 de 60
+cost train -0.08034312725067139
+time:  0.4732227325439453
+cost val:  -0.12744522094726562
+11 de 60
+cost train -0.13342934846878052
+time:  0.5007784366607666
+cost val:  -0.1836189329624176
+12 de 60
+cost train -0.19114691019058228
+time:  0.6346766948699951
+cost val:  -0.25134316086769104
+13 de 60
+cost train -0.25961941480636597
+time:  0.6570122241973877
+cost val:  -0.3374677896499634
+14 de 60
+cost train -0.34383079409599304
+time:  0.6798114776611328
+cost val:  -0.4405484199523926
+15 de 60
+cost train -0.4361111521720886
+time:  0.7027597427368164
+cost val:  -0.4982093572616577
+16 de 60
+cost train -0.4540003836154938
+time:  0.7284791469573975
+cost val:  -0.5938097834587097
+17 de 60
+cost train -0.5777158737182617
+time:  0.8686907291412354
+cost val:  -0.6315839290618896
+18 de 60
+cost train -0.6410731673240662
+time:  0.8929650783538818
+cost val:  -0.6534585952758789
+19 de 60
+cost train -0.6754042506217957
+time:  0.9164884090423584
+cost val:  -0.6825438737869263
+20 de 60
+cost train -0.7126057147979736
+time:  0.9460916519165039
+cost val:  -0.7179827690124512
+21 de 60
+cost train -0.755635142326355
+time:  0.978090763092041
+cost val:  -0.7545680999755859
+22 de 60
+cost train -0.8007092475891113
+time:  1.1310274600982666
+cost val:  -0.7870121002197266
+23 de 60
+cost train -0.8430559635162354
+time:  1.1539483070373535
+cost val:  -0.811267077922821
+24 de 60
+cost train -0.8772449493408203
+time:  1.1776535511016846
+cost val:  -0.8707109689712524
+25 de 60
+cost train -0.9371371269226074
+time:  1.201892614364624
+cost val:  -0.9592828750610352
+26 de 60
+cost train -1.0133984088897705
+time:  1.2270946502685547
+cost val:  -1.0245006084442139
+27 de 60
+cost train -1.0646229982376099
+time:  1.2519798278808594
+cost val:  -1.072803020477295
+28 de 60
+cost train -1.1020212173461914
+time:  1.393385887145996
+cost val:  -1.1170653104782104
+29 de 60
+cost train -1.1371132135391235
+time:  1.4191758632659912
+cost val:  -1.1631715297698975
+30 de 60
+cost train -1.1736785173416138
+time:  1.4443323612213135
+cost val:  -1.212492823600769
+31 de 60
+cost train -1.1726504564285278
+time:  1.468372106552124
+cost val:  -1.2229734659194946
+32 de 60
+cost train -1.177418828010559
+time:  1.4908497333526611
+cost val:  -1.2340734004974365
+33 de 60
+cost train -1.190032958984375
+time:  1.6308588981628418
+cost val:  -1.2415423393249512
+34 de 60
+cost train -1.2047430276870728
+time:  1.65468168258667
+cost val:  -1.2438335418701172
+35 de 60
+cost train -1.2161895036697388
+time:  1.6821389198303223
+cost val:  -1.2408376932144165
+36 de 60
+cost train -1.2223623991012573
+time:  1.7044620513916016
+cost val:  -1.2314178943634033
+37 de 60
+cost train -1.2215858697891235
+time:  1.7277154922485352
+cost val:  -1.222271203994751
+38 de 60
+cost train -1.219506859779358
+time:  1.8697831630706787
+cost val:  -1.2260469198226929
+39 de 60
+cost train -1.2272052764892578
+time:  1.8923065662384033
+cost val:  -1.2403572797775269
+40 de 60
+cost train -1.2419766187667847
+time:  1.9165003299713135
+cost val:  -1.2584971189498901
+41 de 60
+cost train -1.2573223114013672
+time:  1.9415628910064697
+cost val:  -1.2767411470413208
+42 de 60
+cost train -1.2698094844818115
+time:  1.9668617248535156
+cost val:  -1.2909711599349976
+43 de 60
+cost train -1.2771787643432617
+time:  1.9930312633514404
+cost val:  -1.302754521369934
+44 de 60
+cost train -1.2852743864059448
+time:  2.1287078857421875
+cost val:  -1.3185056447982788
+45 de 60
+cost train -1.3019068241119385
+time:  2.1518478393554688
+cost val:  -1.3414199352264404
+46 de 60
+cost train -1.3275115489959717
+time:  2.175626754760742
+cost val:  -1.372511863708496
+47 de 60
+cost train -1.3614094257354736
+time:  2.200578212738037
+cost val:  -1.4131864309310913
+48 de 60
+cost train -1.4042761325836182
+time:  2.2243006229400635
+cost val:  -1.457682728767395
+49 de 60
+cost train -1.4475003480911255
+time:  2.364649534225464
+cost val:  -1.5100624561309814
+50 de 60
+cost train -1.499925971031189
+time:  2.388573408126831
+cost val:  -1.5701252222061157
+51 de 60
+cost train -1.5679616928100586
+time:  2.4120004177093506
+cost val:  -1.6459482908248901
+52 de 60
+cost train -1.6360729932785034
+time:  2.4346139430999756
+cost val:  -1.727231502532959
+53 de 60
+cost train -1.7261148691177368
+time:  2.4589767456054688
+cost val:  -1.7543859481811523
+54 de 60
+cost train -1.7687170505523682
+time:  2.603656768798828
+cost val:  0.026980245485901833
+55 de 60
+cost train -0.21396508812904358
+time:  2.6261680126190186
+cost val:  -1.2985336780548096
+56 de 60
+cost train -1.3208647966384888
+time:  2.6484575271606445
+cost val:  -0.8345193266868591
+57 de 60
+cost train -0.8481314778327942
+time:  2.6707749366760254
+cost val:  -0.5760021209716797
+58 de 60
+cost train -0.5854313969612122
+time:  2.6958746910095215
+cost val:  -0.4175199568271637
+59 de 60
+cost train -0.4241534471511841
+time:  2.8333075046539307
+cost val:  -0.31596729159355164
+abb94195c7d392f0fea47b2049312089
+
+* Results experiment 
+** N=500
+#+BEGIN_SRC python :session :results output raw
+loss_plot(loss_t_500,loss_v_500)
+pred_plot(input_test,target_test,pred_test_500,x_smo,pred_smo_500)
+#+END_SRC
+
+#+RESULTS:
+Saving to
+[[file:./tmp//loss.png]]
+Saving to
+[[file:./tmp//prediction.png]]
+Saving to
+[[file:./tmp//loss.png]]
+Saving to
+[[file:./tmp//prediction.png]]

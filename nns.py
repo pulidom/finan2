@@ -11,14 +11,17 @@ from statsmodels.nonparametric.kernel_regression import KernelReg
 from numpy.polynomial import polynomial as P
 from scipy import stats
 #import optimal_transport as ot
-import ot3
+import ot2
 from time import time
 
-def NLL_loss(pred, labels, eps=1e-6):
+def NLL_loss(pred, labels, epoch,eps=1.e-6):
     ''' Negative log likelihood '''
+    eps=1.e-6
     mu, sigma = pred.T
     mu=mu[:,None]; sigma=sigma[:,None]
     sigma = torch.clamp(sigma, min=eps)
+    print(sigma)
+    quit()
     distribution = torch.distributions.normal.Normal(mu, sigma)
     return -torch.mean(distribution.log_prob(labels))
 
@@ -42,6 +45,22 @@ def mixed_loss(pred, labels, epoch, warmup_epochs=30):
     
     return (1 - alpha) * mse + alpha * nll
 
+
+def mixed_loss2(pred, labels, epoch, warmup_epochs=30):
+    """Gradually transition from MSE to NLL"""
+    mu, sigma = pred.T
+    
+    # Warmup: use more MSE early on
+    alpha = min(1.0, epoch / warmup_epochs)
+    
+    # MSE component
+    mse = F.mse_loss(mu, labels.squeeze())
+    
+    # eMSE
+    mu=mu[:,None]; sigma=sigma[:,None]
+    error = (mu-labels)**2
+    
+    return (1 - alpha) * mse + alpha * F.mse_loss(sigma**2, error)
 
 def eMSE_loss( in_var,labels,alpha=0.5):
     """
@@ -292,8 +311,9 @@ def train(Net,train_loader,val_loader,conf):
             optimizer.step()
 
         loss_t[i_epoch]=train_loss/(i_batch+1)
-        print('cost train',loss_t[i_epoch])
-        print('time: ',time()-t0)
+
+        #print('cost train',loss_t[i_epoch])
+        #print('time: ',time()-t0)
         # Validation
         if conf.lvalidation and i_epoch % freq_epoch == 0: 
             Net.eval() 
