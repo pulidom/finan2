@@ -317,7 +317,7 @@ def inversion_zscore(zscore0,nret_x,nret_y,cnf,shorten=0):
         res={
             'largo':largo0, 'corto':corto0, 'capital':capital0, 'retorno':retorno0,
             'compras':compras0, 'ccompras':ccompras0, 'zscore':zscore0,
-            'beta':b, 'spread':s, 'spread_mean':sm, 'spread_std':ss }
+            'beta':0, 'spread':0, 'spread_mean':0, 'spread_std':0 }
     return res
 
 

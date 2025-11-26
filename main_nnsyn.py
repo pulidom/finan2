@@ -8,7 +8,8 @@ from torch.utils import data
 from time import time
 #import optimal_transport as ot
 from numpy.polynomial import polynomial as P
-from functools import partial
+import utils
+import arbitrage as ar
 import ot2
 import nns
 from syn_data import load_sts
@@ -30,7 +31,7 @@ class conf:
     seed = 42
     loss = nns.mixed_loss #MSE_loss #mixed_loss  # Your NLL-based loss
     learning_rate = 1e-3
-    n_epochs = 50
+    n_epochs = 3
     patience = 30
     sexp = 'syn_assets_mixed_nll'
     exp_dir = './tmp/'
@@ -41,6 +42,7 @@ class conf:
 
 nt= n_train + 2 * n_val
 ts = load_sts(nt=nt,lopt=0,regime_length=nt,seed=43)
+x,y,nretx,nrety = utils.select_variables(ts[0],ts[1],tipo='asset')
 ts=ts[:2].T
 
 xydat=[]
@@ -54,6 +56,9 @@ for dat_name in dat_type:
     dset = nns.DriveData(dat, device = device, normalize = normalize)
 
     xydat.append([dset.x_data,dset.y_data]) # normalized
+    
+    _,_,nretx,nrety = utils.select_variables(dat[0],dat[1],tipo='asset')
+
     loader = data.DataLoader(dset, batch_size=batch_size, shuffle=shuffle)
     loaders.append(loader)
 
@@ -82,7 +87,7 @@ def zscore(z,x):
     xpred = best_net(z)
     zsc= (x-xpred.T[0][:,None])/xpred.T[1][:,None]
     return zsc 
-z_score= zscore(dset.x_data,dset.y_data)
+
 
 def loss_plot(loss_t,loss_v):
     plt.figure(figsize=(6,4))
@@ -109,18 +114,14 @@ def pred_plot(input_dat,target_dat,pred,x_smo,pred_smo):
     plt.ylabel(r'$x$');
     plt.savefig(f'{conf.exp_dir}/prediction_{conf.sexp}.png')
 
-    
-loss_plot(loss_t,loss_v)
-pred_plot(input_test,target_test,pred_test,x_smo,pred_smo)
-
-plt.figure(figsize=(8,4))
-z_score=z_score.cpu().detach().numpy()
-plt.plot(z_score)
-plt.ylim([-3,3])
-plt.xlabel(r'$t$');
-plt.ylabel(r'$z-score$');
-plt.savefig(f'{conf.exp_dir}/zcore_{conf.sexp}.png')
-
+def zscore_plot(z_score):
+    plt.figure(figsize=(8,4))
+    z_score=z_score.cpu().detach().numpy()
+    plt.plot(z_score)
+    plt.ylim([-3,3])
+    plt.xlabel(r'$t$');
+    plt.ylabel(r'$z-score$');
+    plt.savefig(f'{conf.exp_dir}/zcore_{conf.sexp}.png')
 
 def synsamples_plot(input_dat,target_dat,pred):
     samples = torch.normal(
@@ -148,7 +149,23 @@ def synsamples_plot(input_dat,target_dat,pred):
 
     plt.savefig(f'{conf.exp_dir}/synsamples_{conf.sexp}.png')
 
+class cnf:
+    sigma_co=1.5
+    sigma_ve=0.1
 
+
+z_score= zscore(dset.x_data,dset.y_data)
+print(z_score.shape,nretx.shape)
+res = ar.inversion_zscore(z_score[:-1].cpu().detach().numpy(),nretx,nrety,cnf)
+
+loss_plot(loss_t,loss_v)
+pred_plot(input_test,target_test,pred_test,x_smo,pred_smo)
+zscore_plot(z_score)
 synsamples_plot(input_test,target_test,pred_test)
 
 
+plt.figure(figsize=(8,4))
+plt.plot(res['capital'])
+plt.xlabel(r'$t$');
+plt.ylabel(r'Capital');
+plt.savefig(f'{conf.exp_dir}/capital_{conf.sexp}.png')
