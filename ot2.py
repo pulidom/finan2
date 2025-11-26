@@ -1,7 +1,27 @@
+'''  Clase de baricentro para uso mas transparente. Incluye la posibilidad de Gaussian o polionomial.
+
+Tambien se agrega la distancia entre dos distribuciones a traves de muestras, puede ser copula o pueden ser cualquier muestra
+
+'''
+
+
 import numpy as np
 from sklearn.cluster import KMeans
 from scipy.linalg import svd
 from scipy.stats import spearmanr
+from scipy import stats
+from scipy.optimize import minimize
+import warnings
+warnings.filterwarnings('ignore')
+#import matplotlib.pyplot as plt
+import my_pyplot as plt
+# Optimal transport using POT library
+try:
+    import ot
+    HAS_POT = True
+except ImportError:
+    HAS_POT = False
+    print("POT library not found. Install with: pip install POT")
 
 def compute_dependence(y, z):
     """Calcula la dependencia entre y y z"""
@@ -535,4 +555,328 @@ def interpolate_barycenter(z_current, cached_Z, cached_y):
         return y_sorted[-1]
     else:
         return np.interp(z_current, Z_sorted, y_sorted)
+
+
+def wasserstein_distance(samples, target):
+    """Compute 2-Wasserstein distance between two samples"""
+    n1 = len(samples)
+    n2 = len(target)
+    a = np.ones(n1) / n1
+    b = np.ones(n2) / n2
+    
+    M = ot.dist(samples, target, metric='euclidean')
+    M = M ** 2
+    
+    W2_squared = ot.emd2(a, b, M)
+    return np.sqrt(W2_squared)
+
+class CopulaFitter:
+    """
+    Fits various copulas to bivariate data using Wasserstein distance
+    """
+    
+    def __init__(self, data):
+        """
+        Parameters:
+        -----------
+        data : array-like, shape (n, 2)
+            Bivariate data to fit
+        """
+        self.data = np.array(data)
+        self.n = len(self.data)
+        
+        # Transform to pseudo-observations (empirical copula)
+        self.uniform_data = self._to_uniform_marginals(self.data)
+    
+    def _to_uniform_marginals(self, data):
+        """Transform data to uniform marginals using empirical CDF"""
+        n = len(data)
+        uniform = np.zeros_like(data)
+        for j in range(data.shape[1]):
+            ranks = stats.rankdata(data[:, j])
+            uniform[:, j] = ranks / (n + 1)
+        return uniform
+    
+    def _gaussian_copula_sample(self, n_samples, rho):
+        """Generate samples from Gaussian copula"""
+        mean = [0, 0]
+        cov = [[1, rho], [rho, 1]]
+        samples = np.random.multivariate_normal(mean, cov, n_samples)
+        # Transform to uniform using standard normal CDF
+        uniform_samples = stats.norm.cdf(samples)
+        return uniform_samples
+    
+    def _clayton_copula_sample(self, n_samples, theta):
+        """Generate samples from Clayton copula"""
+        if theta <= 0:
+            theta = 0.01  # Avoid numerical issues
+        
+        u = np.random.uniform(0, 1, n_samples)
+        v_samples = np.random.uniform(0, 1, n_samples)
+        
+        # Conditional sampling
+        v = (u**(-theta) * (v_samples**(-theta/(1+theta)) - 1) + 1)**(-1/theta)
+        
+        return np.column_stack([u, v])
+    
+    def _gumbel_copula_sample(self, n_samples, theta):
+        """Generate samples from Gumbel copula"""
+        if theta < 1:
+            theta = 1.01  # Gumbel parameter must be >= 1
+        
+        # Using the algorithm from Hofert (2008)
+        alpha = 1 / theta
+        u = np.random.uniform(0, 1, n_samples)
+        
+        # Generate from stable distribution
+        v = np.random.uniform(0, 1, n_samples)
+        w = np.random.exponential(1, n_samples)
+        
+        s = self._stable_sample(alpha, n_samples)
+        
+        u1 = np.exp(-(-np.log(u) / s)**(1/theta))
+        u2 = np.exp(-(-np.log(v) / s)**(1/theta))
+        
+        return np.column_stack([u1, u2])
+    
+    def _stable_sample(self, alpha, n):
+        """Sample from stable distribution (simplified)"""
+        # Simplified stable distribution sampling
+        return np.random.gamma(1/alpha, 1, n)
+    
+    def _frank_copula_sample(self, n_samples, theta):
+        """Generate samples from Frank copula"""
+        if abs(theta) < 0.01:
+            # Return independence copula for theta near 0
+            return np.random.uniform(0, 1, (n_samples, 2))
+        
+        u = np.random.uniform(0, 1, n_samples)
+        t = np.random.uniform(0, 1, n_samples)
+        
+        # Conditional sampling with numerical stability
+        if theta > 0:
+            # Positive dependence
+            exp_theta = np.exp(-theta)
+            exp_theta_u = np.exp(-theta * u)
+            
+            numerator = -np.log(1 - t * (1 - exp_theta))
+            denominator = theta + np.log(t * exp_theta_u + (1 - t))
+            
+            v = numerator / denominator
+        else:
+            # Negative dependence
+            theta_abs = abs(theta)
+            exp_theta = np.exp(theta_abs)
+            exp_theta_u = np.exp(theta_abs * u)
+            
+            numerator = np.log(1 + t * (exp_theta - 1))
+            denominator = theta_abs - np.log((1 - t) + t * exp_theta_u)
+            
+            v = numerator / denominator
+        
+        # Clip to valid range to avoid numerical errors
+        v = np.clip(v, 1e-10, 1 - 1e-10)
+        u = np.clip(u, 1e-10, 1 - 1e-10)
+        
+        return np.column_stack([u, v])
+    
+    def _independence_copula_sample(self, n_samples):
+        """Generate samples from independence copula"""
+        return np.random.uniform(0, 1, (n_samples, 2))
+    
+    def wasserstein_distance(self, copula_samples):
+        """
+        Compute 2-Wasserstein distance between data and copula samples
+        """
+        if not HAS_POT:
+            # Fallback to simple distance measure if POT not available
+            return self._approximate_wasserstein(copula_samples)
+        
+        # Uniform weights
+        a = np.ones(self.n) / self.n
+        b = np.ones(len(copula_samples)) / len(copula_samples)
+        
+        # Cost matrix (Euclidean distance squared)
+        M = ot.dist(self.uniform_data, copula_samples, metric='euclidean')
+        M = M ** 2  # Squared for W2 distance
+        
+        # Compute optimal transport
+        W2_squared = ot.emd2(a, b, M)
+        
+        return np.sqrt(W2_squared)
+    
+    def _approximate_wasserstein(self, copula_samples):
+        """Approximate Wasserstein distance without POT library"""
+        # Simple approximation: mean of minimum distances
+        from scipy.spatial.distance import cdist
+        
+        dist_matrix = cdist(self.uniform_data, copula_samples, metric='euclidean')
+        min_distances = np.min(dist_matrix, axis=1)
+        
+        return np.mean(min_distances)
+    
+    def fit_copula(self, copula_type, param_range=None, n_samples=None):
+        """
+        Fit a copula by minimizing Wasserstein distance
+        
+        Parameters:
+        -----------
+        copula_type : str
+            Type of copula: 'gaussian', 'clayton', 'gumbel', 'frank', 'independence'
+        param_range : tuple
+            Range for parameter search (min, max)
+        n_samples : int
+            Number of samples to generate from copula (default: same as data)
+        
+        Returns:
+        --------
+        dict : Best parameter and Wasserstein distance
+        """
+        if n_samples is None:
+            n_samples = self.n
+        
+        if copula_type == 'independence':
+            samples = self._independence_copula_sample(n_samples)
+            distance = self.wasserstein_distance(samples)
+            return {'copula': 'independence', 'parameter': None, 'distance': distance}
+        
+        # Set default parameter ranges
+        if param_range is None:
+            if copula_type == 'gaussian':
+                param_range = (-0.99, 0.99)
+            elif copula_type == 'clayton':
+                param_range = (0.1, 10)
+            elif copula_type == 'gumbel':
+                param_range = (1.01, 10)
+            elif copula_type == 'frank':
+                param_range = (-10, 10)
+        
+        def objective(param):
+            param = param[0]
+            try:
+                if copula_type == 'gaussian':
+                    samples = self._gaussian_copula_sample(n_samples, param)
+                elif copula_type == 'clayton':
+                    samples = self._clayton_copula_sample(n_samples, max(0.01, param))
+                elif copula_type == 'gumbel':
+                    samples = self._gumbel_copula_sample(n_samples, max(1.01, param))
+                elif copula_type == 'frank':
+                    samples = self._frank_copula_sample(n_samples, param)
+                else:
+                    raise ValueError(f"Unknown copula type: {copula_type}")
+                
+                return self.wasserstein_distance(samples)
+            except:
+                return 1e10  # Large penalty for invalid parameters
+        
+        # Optimize
+        result = minimize(objective, 
+                         x0=[(param_range[0] + param_range[1]) / 2],
+                         bounds=[param_range],
+                         method='L-BFGS-B')
+        
+        return {
+            'copula': copula_type,
+            'parameter': result.x[0],
+            'distance': result.fun
+        }
+    
+    def fit_all_copulas(self, n_samples=None):
+        """
+        Fit all available copulas and return comparison
+        """
+        copulas = ['gaussian', 'clayton', 'gumbel', 'frank', 'independence']
+        results = []
+        
+        print("Fitting copulas using Wasserstein distance...\n")
+        
+        for copula in copulas:
+            print(f"Fitting {copula} copula...")
+            result = self.fit_copula(copula, n_samples=n_samples)
+            results.append(result)
+            print(f"  Parameter: {result['parameter']}")
+            print(f"  W2 Distance: {result['distance']:.6f}\n")
+        
+        # Sort by distance
+        results.sort(key=lambda x: x['distance'])
+        
+        return results
+    
+    def plot_comparison(self, results, n_samples=1000):
+        """
+        Plot original data and best fitting copulas
+        """
+        fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+        axes = axes.flatten()
+        
+        # Plot original data
+        axes[0].scatter(self.uniform_data[:, 0], self.uniform_data[:, 1], 
+                       alpha=0.5, s=20, label='Data')
+        axes[0].set_title('Original Data (Uniform Marginals)')
+        axes[0].set_xlabel('U')
+        axes[0].set_ylabel('V')
+        axes[0].grid(True, alpha=0.3)
+        axes[0].legend()
+        
+        # Plot top 5 copulas
+        for idx, result in enumerate(results[:5]):
+            copula = result['copula']
+            param = result['parameter']
+            distance = result['distance']
+            
+            # Generate samples
+            if copula == 'gaussian':
+                samples = self._gaussian_copula_sample(n_samples, param)
+            elif copula == 'clayton':
+                samples = self._clayton_copula_sample(n_samples, param)
+            elif copula == 'gumbel':
+                samples = self._gumbel_copula_sample(n_samples, param)
+            elif copula == 'frank':
+                samples = self._frank_copula_sample(n_samples, param)
+            elif copula == 'independence':
+                samples = self._independence_copula_sample(n_samples)
+            
+            axes[idx + 1].scatter(samples[:, 0], samples[:, 1], 
+                                 alpha=0.5, s=20, c='orange')
+            
+            title = f'{copula.capitalize()} Copula'
+            if param is not None:
+                title += f'\nθ={param:.3f}'
+            title += f'\nW₂={distance:.4f}'
+            
+            axes[idx + 1].set_title(title)
+            axes[idx + 1].set_xlabel('U')
+            axes[idx + 1].set_ylabel('V')
+            axes[idx + 1].grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        plt.savefig('tmp/copulas.png')
+
+
+# Example usage
+if __name__ == "__main__":
+    # Generate sample data from a known copula (for testing)
+    np.random.seed(42)
+    
+    # True Gaussian copula with rho=0.7
+    true_rho = 0.7
+    mean = [0, 0]
+    cov = [[1, true_rho], [true_rho, 1]]
+    samples = np.random.multivariate_normal(mean, cov, 500)
+    data = stats.norm.cdf(samples)
+    
+    # Fit copulas
+    fitter = CopulaFitter(data)
+    results = fitter.fit_all_copulas()
+    
+    # Print summary
+    print("\n" + "="*60)
+    print("RANKING OF COPULAS BY WASSERSTEIN DISTANCE")
+    print("="*60)
+    for i, result in enumerate(results, 1):
+        param_str = f"θ={result['parameter']:.4f}" if result['parameter'] is not None else "N/A"
+        print(f"{i}. {result['copula'].capitalize():15s} | {param_str:15s} | W₂={result['distance']:.6f}")
+    
+    # Plot comparison
+    fitter.plot_comparison(results)
     

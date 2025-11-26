@@ -37,6 +37,7 @@ import nns
 #+END_SRC
 
 #+RESULTS:
+2025-11-25 07:25:58.510234: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
 
 ** Configuracion
 #+BEGIN_SRC python :session :results output raw
@@ -100,6 +101,127 @@ pred_smo = best_net(x_smo)#,10)
 #+END_SRC
 
 #+RESULTS:
+0 de 60
+cost val:  0.02999209053814411
+1 de 60
+cost val:  -0.009684599936008453
+2 de 60
+cost val:  -0.05928601324558258
+3 de 60
+cost val:  -0.10706153512001038
+4 de 60
+cost val:  -0.20340301096439362
+5 de 60
+cost val:  -0.3217313587665558
+6 de 60
+cost val:  -0.4777865409851074
+7 de 60
+cost val:  -0.5138483643531799
+8 de 60
+cost val:  -0.7086097002029419
+9 de 60
+cost val:  -0.8326506614685059
+10 de 60
+cost val:  -0.928318440914154
+11 de 60
+cost val:  -0.9388307929039001
+12 de 60
+cost val:  -1.03501558303833
+13 de 60
+cost val:  -1.1708197593688965
+14 de 60
+cost val:  -1.3096648454666138
+15 de 60
+cost val:  -1.3470432758331299
+16 de 60
+cost val:  -1.4242606163024902
+17 de 60
+cost val:  -1.5850050449371338
+18 de 60
+cost val:  -1.6559052467346191
+19 de 60
+cost val:  -1.7420616149902344
+20 de 60
+cost val:  -1.8991243839263916
+21 de 60
+cost val:  -1.9461541175842285
+22 de 60
+cost val:  -1.9809484481811523
+23 de 60
+cost val:  -2.145369291305542
+24 de 60
+cost val:  -2.224135398864746
+25 de 60
+cost val:  -2.2697196006774902
+26 de 60
+cost val:  -2.3983962535858154
+27 de 60
+cost val:  -2.4740045070648193
+28 de 60
+cost val:  -2.529597520828247
+29 de 60
+cost val:  -2.7119715213775635
+30 de 60
+cost val:  -2.798783540725708
+31 de 60
+cost val:  -2.85313081741333
+32 de 60
+cost val:  -2.8299360275268555
+33 de 60
+cost val:  -2.7673118114471436
+34 de 60
+cost val:  -2.7605810165405273
+35 de 60
+cost val:  -2.822871685028076
+36 de 60
+cost val:  -2.799309492111206
+37 de 60
+cost val:  -2.8250956535339355
+38 de 60
+cost val:  -2.816180467605591
+39 de 60
+cost val:  -2.7903356552124023
+40 de 60
+cost val:  -2.8318653106689453
+41 de 60
+cost val:  -2.6555418968200684
+42 de 60
+cost val:  -2.75685453414917
+43 de 60
+cost val:  -2.7642054557800293
+44 de 60
+cost val:  -2.868328809738159
+45 de 60
+cost val:  -2.4953622817993164
+46 de 60
+cost val:  -2.847024917602539
+47 de 60
+cost val:  -2.7712063789367676
+48 de 60
+cost val:  -2.816009044647217
+49 de 60
+cost val:  -2.8378396034240723
+50 de 60
+cost val:  -2.7359440326690674
+51 de 60
+cost val:  -2.851879835128784
+52 de 60
+cost val:  -2.8377490043640137
+53 de 60
+cost val:  -2.6949243545532227
+54 de 60
+cost val:  -2.8612258434295654
+55 de 60
+cost val:  -2.845900058746338
+56 de 60
+cost val:  -2.8146750926971436
+57 de 60
+cost val:  -2.576444387435913
+58 de 60
+cost val:  -2.8435218334198
+59 de 60
+cost val:  -2.8031139373779297
+51dcec03db0454eca5bcdc58467fdb43
 
 
 
@@ -110,7 +232,7 @@ pred_smo = best_net(x_smo)#,10)
 def loss_plot(loss_t,loss_v):
     plt.figure(figsize=(6,4))
     plt.plot(range(len(loss_t)),loss_t,label='Training')#,color='C0')
-    plt.plot(range(len(loss_v)),loss_v,label='Testing')#,color='C1')
+    plt.plot(range(len(loss_v)),loss_v,label='Validation')#,color='C1')
     plt.xlabel('Epoch');
     plt.ylabel('Loss');
     plt.legend()
@@ -146,11 +268,418 @@ pred_plot(input_test,target_test,pred_test,x_smo,pred_smo)
 #+RESULTS:
 Saving to
 [[file:./tmp//loss.png]]
-Convergencia
+
+
+** Log likelihood
+
+#+BEGIN_SRC python :session :results output raw replace :async
+layers = np.array([1, 64, 32,2])
+activation = nn.GELU() #Tanh() #GELU()
+NNmdl = nns.NNmodel(layers, activation).to(device)
+#NNmdl.apply(nns.init_weights)
+conf.loss=nns.NLL_loss #eMSE_loss
 
 
 
+# Generate datasets
+xydat=[]
+loaders=[]
+for dat_name in dat_type:
+    file, nt, batch_size, shuffle = dat_spec[dat_name]
+    dat = nns.sin_sampler(nt)
+    dset = nns.DriveData(dat, device = device, normalize = normalize)
+    loader = data.DataLoader(dset, batch_size=batch_size, shuffle=shuffle)
+    loaders.append(loader)
+    
+#conf.learning_rate=1.e-2
+# Training
+best_net, loss_t, loss_v = nns.train(NNmdl, loaders[0], loaders[1], conf)
+
+# Testing Dataset
+for i_batch, (input_test,target_test) in enumerate(loaders[2]):
+    pred_test = best_net(input_test)#,10)
+    
+# Smooth prediction
+x_smo=np.linspace(0,1,500)
+x_smo = torch.from_numpy(np.asarray(x_smo[:,None],dtype=np.float32)).to(device)
+pred_smo = best_net(x_smo)#,10)
+
+#+END_SRC
+
+#+RESULTS:
+0 de 60
+cost val:  -0.2161216288805008
+1 de 60
+cost val:  -0.6539588570594788
+2 de 60
+cost val:  3.625887393951416
+3 de 60
+cost val:  3.4078028202056885
+4 de 60
+cost val:  3.283001184463501
+5 de 60
+cost val:  3.2038304805755615
+6 de 60
+cost val:  3.150320529937744
+7 de 60
+cost val:  3.1126551628112793
+8 de 60
+cost val:  3.0853796005249023
+9 de 60
+cost val:  3.0652244091033936
+10 de 60
+cost val:  3.0501301288604736
+11 de 60
+cost val:  3.038715362548828
+12 de 60
+cost val:  3.030048131942749
+13 de 60
+cost val:  3.023432493209839
+14 de 60
+cost val:  3.0183963775634766
+15 de 60
+cost val:  3.014575481414795
+16 de 60
+cost val:  3.0116829872131348
+17 de 60
+cost val:  3.0095252990722656
+18 de 60
+cost val:  3.00791072845459
+19 de 60
+cost val:  3.0067338943481445
+20 de 60
+cost val:  3.0058836936950684
+21 de 60
+cost val:  3.0052788257598877
+22 de 60
+cost val:  3.0048553943634033
+23 de 60
+cost val:  3.0045700073242188
+24 de 60
+cost val:  3.0043766498565674
+25 de 60
+cost val:  3.0042502880096436
+26 de 60
+cost val:  3.004169464111328
+27 de 60
+cost val:  3.004115343093872
+28 de 60
+cost val:  3.0040762424468994
+29 de 60
+cost val:  3.0040440559387207
+30 de 60
+cost val:  3.0040149688720703
+31 de 60
+cost val:  3.0039851665496826
+the best validation loss is: -0.6539588570594788
+20fb40bf6cc6972da346a94bb7c8a802
+0 de 60
+cost val:  3.7166683673858643
+1 de 60
+cost val:  3.7153570652008057
+2 de 60
+cost val:  3.7137112617492676
+3 de 60
+cost val:  3.7116730213165283
+4 de 60
+cost val:  3.7092769145965576
+5 de 60
+cost val:  3.7064878940582275
+6 de 60
+cost val:  3.7033016681671143
+7 de 60
+cost val:  3.699709415435791
+8 de 60
+cost val:  3.6957461833953857
+9 de 60
+cost val:  3.6913774013519287
+10 de 60
+cost val:  3.686532497406006
+11 de 60
+cost val:  3.6812360286712646
+12 de 60
+cost val:  3.6753859519958496
+13 de 60
+cost val:  3.669100046157837
+14 de 60
+cost val:  3.6622440814971924
+15 de 60
+cost val:  3.6547985076904297
+16 de 60
+cost val:  3.64676570892334
+17 de 60
+cost val:  3.638075828552246
+18 de 60
+cost val:  3.6286535263061523
+19 de 60
+cost val:  3.6185202598571777
+20 de 60
+cost val:  3.607621908187866
+21 de 60
+cost val:  3.595871925354004
+22 de 60
+cost val:  3.583235263824463
+23 de 60
+cost val:  3.56961989402771
+24 de 60
+cost val:  3.5550901889801025
+25 de 60
+cost val:  3.539501905441284
+26 de 60
+cost val:  3.5228586196899414
+27 de 60
+cost val:  3.5049898624420166
+28 de 60
+cost val:  3.4861128330230713
+29 de 60
+cost val:  3.4658398628234863
+30 de 60
+cost val:  3.4443418979644775
+31 de 60
+cost val:  3.4214541912078857
+32 de 60
+cost val:  3.3971710205078125
+33 de 60
+cost val:  3.371206283569336
+34 de 60
+cost val:  3.3438918590545654
+35 de 60
+cost val:  3.315203905105591
+36 de 60
+cost val:  3.2846601009368896
+37 de 60
+cost val:  3.252427339553833
+38 de 60
+cost val:  3.218667984008789
+39 de 60
+cost val:  3.1832234859466553
+40 de 60
+cost val:  3.145824909210205
+41 de 60
+cost val:  3.106954574584961
+42 de 60
+cost val:  3.0660619735717773
+43 de 60
+cost val:  3.0236644744873047
+44 de 60
+cost val:  2.979448080062866
+45 de 60
+cost val:  2.9337356090545654
+46 de 60
+cost val:  2.886259078979492
+47 de 60
+cost val:  2.837319850921631
+48 de 60
+cost val:  2.786576986312866
+49 de 60
+cost val:  2.735044240951538
+50 de 60
+cost val:  2.681565761566162
+51 de 60
+cost val:  2.626909017562866
+52 de 60
+cost val:  2.571259021759033
+53 de 60
+cost val:  2.5141682624816895
+54 de 60
+cost val:  2.4565865993499756
+55 de 60
+cost val:  2.3985042572021484
+56 de 60
+cost val:  2.3390746116638184
+57 de 60
+cost val:  2.27935528755188
+58 de 60
+cost val:  2.219315528869629
+59 de 60
+cost val:  2.1587958335876465
+36730e5f5251b71a323567929fc627d0
+
+
+#+BEGIN_SRC python :session :results output raw
+loss_plot(loss_t,loss_v)
+pred_plot(input_test,target_test,pred_test,x_smo,pred_smo)
+#+END_SRC
+
+#+RESULTS:
+Saving to
+[[file:./tmp//loss.png]]
+Saving to
 [[file:./tmp//prediction.png]]
+
+
+** Mixed eMSE
+
+
+#+BEGIN_SRC python :session :results output raw replace :async
+layers = np.array([1, 64, 32,2])
+activation = nn.GELU() #Tanh() #GELU()
+NNmdl = nns.NNmodel(layers, activation).to(device)
+#NNmdl.apply(nns.init_weights)
+conf.loss=nns.mixed_loss2 #eMSE_loss
+
+
+
+# Generate datasets
+xydat=[]
+loaders=[]
+for dat_name in dat_type:
+    file, nt, batch_size, shuffle = dat_spec[dat_name]
+    dat = nns.sin_sampler(nt)
+    dset = nns.DriveData(dat, device = device, normalize = normalize)
+    loader = data.DataLoader(dset, batch_size=batch_size, shuffle=shuffle)
+    loaders.append(loader)
+    
+#conf.learning_rate=1.e-2
+# Training
+best_net, loss_t, loss_v = nns.train(NNmdl, loaders[0], loaders[1], conf)
+
+# Testing Dataset
+for i_batch, (input_test,target_test) in enumerate(loaders[2]):
+    pred_test = best_net(input_test)#,10)
+    
+# Smooth prediction
+x_smo=np.linspace(0,1,500)
+x_smo = torch.from_numpy(np.asarray(x_smo[:,None],dtype=np.float32)).to(device)
+pred_smo = best_net(x_smo)#,10)
+
+#+END_SRC
+
+#+RESULTS:
+0 de 60
+cost val:  0.005028563551604748
+1 de 60
+cost val:  0.00345345726236701
+2 de 60
+cost val:  0.0020688564982265234
+3 de 60
+cost val:  0.0017318764002993703
+4 de 60
+cost val:  0.0018336107023060322
+5 de 60
+cost val:  0.0018691241275519133
+6 de 60
+cost val:  0.0016857978189364076
+7 de 60
+cost val:  0.0015061579179018736
+8 de 60
+cost val:  0.001484001986682415
+9 de 60
+cost val:  0.0016093116719275713
+10 de 60
+cost val:  0.001617804984562099
+11 de 60
+cost val:  0.0012509929947555065
+12 de 60
+cost val:  0.0011278815800324082
+13 de 60
+cost val:  0.0011984540615230799
+14 de 60
+cost val:  0.0009910770459100604
+15 de 60
+cost val:  0.0011918110540136695
+16 de 60
+cost val:  0.0009490058291703463
+17 de 60
+cost val:  0.0008598298882134259
+18 de 60
+cost val:  0.0011377037735655904
+19 de 60
+cost val:  0.0007194367935881019
+20 de 60
+cost val:  0.0006780515541322529
+21 de 60
+cost val:  0.0005486727459356189
+22 de 60
+cost val:  0.0004923787200823426
+23 de 60
+cost val:  0.0004945599939674139
+24 de 60
+cost val:  0.00038097825017757714
+25 de 60
+cost val:  0.00030654636793769896
+26 de 60
+cost val:  0.00026411793078295887
+27 de 60
+cost val:  0.0002276902087032795
+28 de 60
+cost val:  0.00013595118070952594
+29 de 60
+cost val:  6.967973604332656e-05
+30 de 60
+cost val:  1.0503528756089509e-05
+31 de 60
+cost val:  1.2958954357600305e-05
+32 de 60
+cost val:  1.1239204468438402e-05
+33 de 60
+cost val:  1.4943769201636314e-05
+34 de 60
+cost val:  1.2726532077067532e-05
+35 de 60
+cost val:  1.0597221262287349e-05
+36 de 60
+cost val:  1.0632923476805445e-05
+37 de 60
+cost val:  1.537357638881076e-05
+38 de 60
+cost val:  1.3165308700990863e-05
+39 de 60
+cost val:  1.26022696349537e-05
+40 de 60
+cost val:  1.1256151992711239e-05
+41 de 60
+cost val:  1.199882899527438e-05
+42 de 60
+cost val:  1.158821669378085e-05
+43 de 60
+cost val:  1.0776097951747943e-05
+44 de 60
+cost val:  1.4501853002002463e-05
+45 de 60
+cost val:  1.1589747373363934e-05
+46 de 60
+cost val:  1.0440173355164006e-05
+47 de 60
+cost val:  1.3048382243141532e-05
+48 de 60
+cost val:  1.1009769878000952e-05
+49 de 60
+cost val:  1.0936343642242718e-05
+50 de 60
+cost val:  1.1597335287660826e-05
+51 de 60
+cost val:  1.6732961739762686e-05
+52 de 60
+cost val:  1.408056323271012e-05
+53 de 60
+cost val:  1.181591233034851e-05
+54 de 60
+cost val:  1.2313273145991843e-05
+55 de 60
+cost val:  1.7681581084616482e-05
+56 de 60
+cost val:  1.1595071555348113e-05
+57 de 60
+cost val:  1.2537380825961009e-05
+58 de 60
+cost val:  2.498067988199182e-05
+59 de 60
+cost val:  1.657253596931696e-05
+3cdcd7c74f806c6d4f524755871ee2f1
+
+
+#+BEGIN_SRC python :session :results output raw
+loss_plot(loss_t,loss_v)
+pred_plot(input_test,target_test,pred_test,x_smo,pred_smo)
+#+END_SRC
+
+#+RESULTS:
+Saving to
+[[file:./tmp//loss.png]]
+Saving to
+[[file:./tmp//prediction.png]]
+
 
 ** N=500
 Con 500 datos

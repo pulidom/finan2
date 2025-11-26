@@ -17,7 +17,7 @@ from syn_data import load_sts
 nns.set_seed(40)
 
 device='cpu'
-n_train=500
+n_train=1000
 n_val=1000
 batch_size=8
 normalize='gauss' # uniform in z for regression / gaussian for assets
@@ -28,7 +28,7 @@ dat_spec = {'train' : ('train.npz', 0,n_train, batch_size, True),
 
 class conf:
     seed = 42
-    loss = nns.MSE_loss#mixed_loss #MSE_loss #mixed_loss  # Your NLL-based loss
+    loss = nns.mixed_loss2 #MSE_loss#mixed_loss #MSE_loss #mixed_loss  # Your NLL-based loss
     learning_rate = 5e-3
     n_epochs = 30
     patience = 15

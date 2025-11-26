@@ -16,12 +16,9 @@ from time import time
 
 def NLL_loss(pred, labels, epoch,eps=1.e-6):
     ''' Negative log likelihood '''
-    eps=1.e-6
     mu, sigma = pred.T
     mu=mu[:,None]; sigma=sigma[:,None]
     sigma = torch.clamp(sigma, min=eps)
-    print(sigma)
-    quit()
     distribution = torch.distributions.normal.Normal(mu, sigma)
     return -torch.mean(distribution.log_prob(labels))
 
@@ -61,6 +58,11 @@ def mixed_loss2(pred, labels, epoch, warmup_epochs=30):
     error = (mu-labels)**2
     
     return (1 - alpha) * mse + alpha * F.mse_loss(sigma**2, error)
+
+def wasserstein_loss(x1, x2):
+    x1_sorted, _ = torch.sort(x1, dim=0)
+    x2_sorted, _ = torch.sort(x2, dim=0)
+    return torch.mean((x1_sorted - x2_sorted)**2)
 
 def eMSE_loss( in_var,labels,alpha=0.5):
     """
@@ -236,6 +238,43 @@ def NNmodel(layers,activation_fn,activation_output=None):
     
     return NNmdl
 
+
+class MeanVarianceNN(nn.Module):
+    """
+    Neural Network that predicts mean and variance
+    """
+    def __init__(self, layers,activation_fn ):#input_dim, hidden_dims=[64, 32], output_dim=2):
+        super(MeanVarianceNN, self).__init__()
+
+        input_dim=layers[0]
+        output_dim=layers[-1]
+        hidden_dims=layers[1:-1]
+        layers = []
+        prev_dim = input_dim
+        
+        # Hidden layers
+        for hidden_dim in hidden_dims:
+            layers.append(nn.Linear(prev_dim, hidden_dim))
+            layers.append( activation_fn ) #nn.ReLU())
+            layers.append(nn.Dropout(0.1))
+            prev_dim = hidden_dim
+        
+        self.backbone = nn.Sequential(*layers)
+        
+        # Separate heads for mean and variance
+        self.mean_head = nn.Linear(prev_dim, output_dim)
+        self.var_head = nn.Sequential(
+            nn.Linear(prev_dim, output_dim),
+            nn.Softplus()  # Ensures positive variance
+        )
+    
+    def forward(self, x):
+        features = self.backbone(x)
+        mean = self.mean_head(features)
+        variance = self.var_head(features)
+        pred=torch.tensor([mean, variance])
+        print(pred.shape)
+        return pred
 
 #class ResidualBlock(nn.Module):
 #    def __init__(self, dim, activation):

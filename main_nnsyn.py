@@ -9,7 +9,7 @@ from time import time
 #import optimal_transport as ot
 from numpy.polynomial import polynomial as P
 from functools import partial
-#import ot3
+import ot2
 import nns
 from syn_data import load_sts
 
@@ -18,9 +18,9 @@ nns.set_seed(40)
 
 device='cpu'
 n_train=10000
-n_val=1000
-batch_size=32
-normalize='gauss' # uniform in z for regression / gaussian for assets
+n_val=2000
+batch_size=16
+normalize='gauss'#'minmax'#'gauss' # uniform in z for regression / gaussian for assets
 dat_type=['train','val','test']
 dat_spec = {'train' : ('train.npz', 0,n_train, batch_size, True),
             'val' : ('val.npz', n_train,n_train + n_val, n_val, False),
@@ -28,11 +28,11 @@ dat_spec = {'train' : ('train.npz', 0,n_train, batch_size, True),
 
 class conf:
     seed = 42
-    loss = nns.mixed_loss2 #MSE_loss #mixed_loss  # Your NLL-based loss
+    loss = nns.mixed_loss #MSE_loss #mixed_loss  # Your NLL-based loss
     learning_rate = 1e-3
-    n_epochs = 100
-    patience = 15
-    sexp = 'exp1'
+    n_epochs = 50
+    patience = 30
+    sexp = 'syn_assets_mixed_nll'
     exp_dir = './tmp/'
     lvalidation = True
     warmup_epochs = 20
@@ -50,6 +50,7 @@ for dat_name in dat_type:
     file, n0, n1, batch_size, shuffle = dat_spec[dat_name]
     
     dat = ts[n0:n1].T
+    
     dset = nns.DriveData(dat, device = device, normalize = normalize)
 
     xydat.append([dset.x_data,dset.y_data]) # normalized
@@ -57,7 +58,7 @@ for dat_name in dat_type:
     loaders.append(loader)
 
 
-NNmdl = nns.NNmodel(conf.layers, conf.activation).to(device)
+NNmdl = nns.NNmodel(conf.layers, conf.activation).to(device) #nns.MeanVarianceNN(conf.layers, conf.activation).to(device)
 NNmdl = nns.BoundaryNet(NNmdl, boundary_width=0.1,min_sigma=0.1)
 NNmdl.apply(nns.init_weights)
 
@@ -67,6 +68,7 @@ best_net, loss_t, loss_v = nns.train(NNmdl, loaders[0], loaders[1], conf)
 # Testing Dataset
 for i_batch, (input_test,target_test) in enumerate(loaders[2]):
     pred_test = best_net(input_test)
+
 
 # Smooth prediction
 train_x, train_y = xydat[0]
@@ -89,7 +91,7 @@ def loss_plot(loss_t,loss_v):
     plt.xlabel('Epoch');
     plt.ylabel('Loss');
     plt.legend()
-    plt.savefig(f'{conf.exp_dir}/loss.png')
+    plt.savefig(f'{conf.exp_dir}/loss_{conf.sexp}.png')
     
 def pred_plot(input_dat,target_dat,pred,x_smo,pred_smo):
     input_dat=input_dat.cpu().detach().numpy()
@@ -105,7 +107,7 @@ def pred_plot(input_dat,target_dat,pred,x_smo,pred_smo):
     plt.fill_between(x_smo.T[0],pred_smo.T[0] -  2* pred_smo.T[1], pred_smo.T[0] + 2* pred_smo.T[1], color='gray', alpha=0.2)
     plt.xlabel(r'$z$');
     plt.ylabel(r'$x$');
-    plt.savefig(f'{conf.exp_dir}/prediction.png')
+    plt.savefig(f'{conf.exp_dir}/prediction_{conf.sexp}.png')
 
     
 loss_plot(loss_t,loss_v)
@@ -114,6 +116,39 @@ pred_plot(input_test,target_test,pred_test,x_smo,pred_smo)
 plt.figure(figsize=(8,4))
 z_score=z_score.cpu().detach().numpy()
 plt.plot(z_score)
+plt.ylim([-3,3])
 plt.xlabel(r'$t$');
 plt.ylabel(r'$z-score$');
-plt.savefig(f'{conf.exp_dir}/zcore.png')
+plt.savefig(f'{conf.exp_dir}/zcore_{conf.sexp}.png')
+
+
+def synsamples_plot(input_dat,target_dat,pred):
+    samples = torch.normal(
+        pred[:, 0:1].expand(-1, 50),  # Expand mean to [1000, 50]
+        pred[:, 1:2].expand(-1, 50)   # Expand sigma to [1000, 50]
+    )
+
+    input_samples=input_dat.expand(-1, 50)
+    input_samples=input_samples.cpu().detach().numpy().flatten()
+    input=input_dat.cpu().detach().numpy().flatten()
+    target=target_dat.cpu().detach().numpy().flatten()
+    samples=samples.squeeze().cpu().detach().numpy().flatten()
+    print(input_samples.shape,samples.shape)
+    dat=np.vstack([input,target]).T
+    syn=np.vstack([input_samples,samples]).T
+    
+    W=ot2.wasserstein_distance(syn, dat)
+    print('Wasserstein: ',W)
+    fig, ax = plt.subplots(1,2,figsize=(9,4))
+    ax[0].plot(input,target, '.',alpha=0.3,label='Target')
+    ax[0].set(xlabel=r'$z$',ylabel=r'$x$')
+
+    ax[1].plot(input_samples,samples, '.',alpha=0.3,label='Sample')
+    ax[1].set(xlabel=r'$z$',ylabel=r'$x$')
+
+    plt.savefig(f'{conf.exp_dir}/synsamples_{conf.sexp}.png')
+
+
+synsamples_plot(input_test,target_test,pred_test)
+
+

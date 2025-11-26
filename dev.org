@@ -35,8 +35,18 @@ if (z_score_actual > 2.0 and
 
     Combina esta probabilidad con el Z-Score actual
 
-
 * Development
+** regresion con NNs
+
+Se puede trabajar igual que las copulas con la cdf y tratando de predecir la cdf de los datos la cual va a estar concentrada en 0,1??
+
+Porque la input de las copulas se utiliza la cdf en lugar de los datos mismos?
+
+
+*** Resultados
+1. Convergencia de la red neuronal con 10.000 puntos
+2. Convergencia de 500 puntos
+3. Comparacion con las copulas (generacion de muestras de la NN y comparacion de la Wasserstein)
 
 ** redes
 
