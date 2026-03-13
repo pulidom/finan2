@@ -33,7 +33,7 @@ class cnf:
 # load data
 day,date,price,company,volume = load_ts(sectors=cnf.industry, pathdat=cnf.pathdat)
 
-#metrics = seleccion.all_pairs_stats(price[:,:cnf.Ntraining],company,'asset')
+#metrics = statistics.all_pairs_stats(price[:,:cnf.Ntraining],company,'asset')
 #idx_selected_pairs = np.argsort(metrics.pvalue)[:cnf.nsel]
 
 idx_selected_pairs = [3298, 3594, 1090, 3279, 1125,  404,  951,  782, 2393, 1731] # selected pairs by pvalue
@@ -55,7 +55,9 @@ for i, (x, y) in enumerate(assets_l):
     res_l.append( res_d )
         
 res = utils.Results(res_l) # paso a objetos
-metrics = co.stats([res.asset_x,res.asset_y],'log')
+
+metrics = statistics.stats(res.assets,'log')
+
 def vertical_bar(axs,compras,ccompras):
     ''' Plot the entrada y salida de posiciones '''
     start_indices, end_indices= utils.calc_startend(compras[:,None])

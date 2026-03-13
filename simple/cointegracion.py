@@ -40,7 +40,8 @@ def inversion(x,y,cnf):
     largo0, corto0, capital0,retorno0 = capital_invertido(nret_x,nret_y,
                                                  compras0,ccompras0,
                                                  beta=beta)
-    res={  'asset_x': x,'asset_y': y,'largo':largo0, 'corto':corto0,
+    assets= [x,y]
+    res={  'assets':assets,'asset_x': x,'asset_y': y,'largo':largo0, 'corto':corto0,
            'capital':capital0, 'retorno':retorno0,
            'compras':compras0, 'ccompras':ccompras0, 'zscore':zscore0,
            'beta':b, 'spread':s, 'spread_mean':sm, 'spread_std':ss }
