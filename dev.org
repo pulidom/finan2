@@ -11,7 +11,6 @@
 Asumo que tengo un conjunto de entradas en un espacio $(x^k_1,x^k_2)_{k=1}^{N_k}$ que corresponden a la serie de tiempos $k=1,N_k$, si ahora observo a $x^{N_k+1}_1$ quiero estimar $p(x^{N_k+1}_1^2|x^{N_k+1}_1, x^{1:N_k}_1,x^{1:N_k}_2)$.
 
 
-
 ** Tabak funcion inversa
 Se puede realizar el scatterplot que estamos obteniendo de Tabak con el T-1 para ver si le peda  a la distribucion
 
@@ -36,6 +35,14 @@ if (z_score_actual > 2.0 and
     Combina esta probabilidad con el Z-Score actual
 
 * Development
+** EnKF
+Mi recomendación: Híbrido
+
+    Sigue actualizando el beta con el EnKF (no lo congeles)
+    Pero usa dos señales de salida:
+        Señal principal: Z-score calculado con el beta original (el de entrada) vuelve a niveles normales
+        Stop de invalidación: Si el beta nuevo se aleja mucho del beta de entrada (ej: >20-30% de cambio), sal porque el modelo cambió
+
 ** regresion con NNs
 
 Se puede trabajar igual que las copulas con la cdf y tratando de predecir la cdf de los datos la cual va a estar concentrada en 0,1??

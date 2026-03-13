@@ -77,7 +77,7 @@ def online_zscores(x, y,
             if it >= zscore_win:
                 spread_win = spread[it-zscore_win+1:it+1] # incluye el it
                 spread_mean[it],spread_std[it] = mean_fn(spread_win)
-                zscore[it] = (spread[it] - spread_mean[it]) / spread_std[it]
+                zscore[it] = (spread[it] - spread_mean[it]) / (spread_std[it]+eps)
     elif mtd=='ot':
         for it in range(beta_win, len(x)):
             # Ventana de entrenamiento OT
@@ -293,12 +293,13 @@ def inversion(x,y,cnf,shorten=0):
                                                  compras0,ccompras0,
                                                  beta=beta)
 
+    assets = [x,y]
     if shorten: # problemas de memoria para simulaciones en paralelo all_pairs
         res={'capital':capital0}
     else:
-        print('')
         res={
-            'largo':largo0, 'corto':corto0, 'capital':capital0, 'retorno':retorno0,
+            'largo':largo0, 'corto':corto0, 'capital':capital0,
+            'retorno':retorno0,'assets':assets,
             'compras':compras0, 'ccompras':ccompras0, 'zscore':zscore0,
             'beta':b, 'spread':s, 'spread_mean':sm, 'spread_std':ss }
     return res

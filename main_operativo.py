@@ -59,6 +59,7 @@ for ilast in range(cnf.Ntraining+cnf.Njump,nt,cnf.Njump):
 
     res2=copy.deepcopy(res)
 
+    
     # Select nsel best pairs
     idx = np.argsort(res.capital[:,ilast-cnf.Njump-iini])[::-1][:cnf.nsel]
     res.reorder(idx) # ordeno todo los resultados segun el capital
