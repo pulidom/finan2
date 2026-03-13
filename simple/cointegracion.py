@@ -3,9 +3,16 @@ import utils
 from utils import (lin_reg, mean_function,)
 
 
-def zscore_moving_win(x, y, beta_win=41, zscore_win=21 ):
+def zscore_moving_win(x, y, beta_win=41, zscore_win=21, eps = 1.e-10 ):
     ''' Usa regresion lineal y una ventana movil para calcular el z_score 
        '''    
+    beta = np.full_like(x, np.nan)
+    spread = np.full_like(x, np.nan)
+    spread_mean = np.full_like(x, np.nan)
+    spread_std = np.full_like(x, np.nan)
+    spread_sq = np.full_like(x, np.nan)
+    zscore = np.full_like(x, np.nan)
+    
     for it in range(beta_win, len(x)):
         x_win = x[it-beta_win:it]
         y_win = y[it-beta_win:it]
@@ -16,7 +23,7 @@ def zscore_moving_win(x, y, beta_win=41, zscore_win=21 ):
 
         if it >= zscore_win:
             spread_win = spread[it-zscore_win+1:it+1] # incluye el it
-            spread_mean[it],spread_std[it] = mean_fn(spread_win)
+            spread_mean[it],spread_std[it] = utils.meanvar(spread_win)
             zscore[it] = (spread[it] - spread_mean[it]) / (spread_std[it]+eps)
             
     return zscore,beta,spread,spread_mean,spread_std
@@ -33,8 +40,7 @@ def inversion(x,y,cnf):
     largo0, corto0, capital0,retorno0 = capital_invertido(nret_x,nret_y,
                                                  compras0,ccompras0,
                                                  beta=beta)
-    assets = [x,y]
-    res={  'assets': assets,'largo':largo0, 'corto':corto0,
+    res={  'asset_x': x,'asset_y': y,'largo':largo0, 'corto':corto0,
            'capital':capital0, 'retorno':retorno0,
            'compras':compras0, 'ccompras':ccompras0, 'zscore':zscore0,
            'beta':b, 'spread':s, 'spread_mean':sm, 'spread_std':ss }
