@@ -84,7 +84,10 @@ Ademas podemos ver que no siempre mayor volatilidad del spread implica mayor ren
 | NOG-OXY    | 4.64        | 217     |
 | EQT-SM     | 4.03        | 5       |
 
-Esto sugiere que la rentabilidad depende también de la estabilidad de la reversión a la media. 
+**Insight clave:**
+
+La rentabilidad depende no solo de la volatilidad,
+sino también de la estabilidad de la reversión a la media.
 
 ## Resultados del experimento (EWMA)
 
@@ -218,7 +221,7 @@ donde
 $R_i$ = retornos  
 $Λ_{iA}$ = matriz de loadings (por ejemplo industria)  
 $f_A$ = factores  
-$ε_i$ = residuales de la regresión
+$\epsilon_i$ = residuales de la regresión
 
 La señal de trading pasa a ser: $ε_i$
 
@@ -236,7 +239,7 @@ $$
 Entonces:
 
 $$
-ε = R − Ω Q^{−1} Ω^T Z R
+\epsilon = R - \Omega (\Omega^T Z \Omega)^{-1} \Omega^T Z R
 $$
 
 Esto reduce la exposición a activos muy volátiles.
@@ -260,13 +263,13 @@ $V = √( Σ C_{ij} D_i D_j )$
 
 El problema puede verse como:
 
-$max   wᵀR / √(wᵀ C w)$
+$\text{max }   (wᵀR / √(wᵀ C w))$
 
 Donde podemos sacar que la solucion sin restricciones es: 
 
 $$
-w = C⁻¹ R$
-$
+w = C⁻¹ R
+$$
 
 donde
 
@@ -295,7 +298,7 @@ Kakushadze propone usar modelos factoriales:
 
 $$
 Θ = Ξ + Ω Φ Ωᵀ
-$Fe$
+$$
 
 donde
 
@@ -305,16 +308,17 @@ $Φ$  = covarianza entre factores
 
 Esto reduce la dimensionalidad del problema y produce estimaciones más estables.
 
-# Próximo paso: optimización de portafolio
+# Trabajo futuro
 
 Actualmente evaluamos pares de forma independiente.
 
-Un paso natural sería construir un portafolio de pares:
+Una extensión natural sería:
 
-1 generar señales de trading para cada par
-2 estimar retornos esperados
-3 estimar riesgo (covarianza o factor model)
-4 resolver optimización del portafolio: Maximizar Sharpe ratio
+- optimizar un portafolio conjunto de pares en lugar de evaluarlos de forma independiente
+- incorporar modelos factoriales para estimar el riesgo
+- analizar la estabilidad temporal de las señales
+
+Esto permitiría pasar de un enfoque descriptivo a uno completamente cuantitativo.
 
 El objetivo es pasar de:
 
