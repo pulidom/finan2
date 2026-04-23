@@ -8,6 +8,7 @@ from hurst import compute_Hc as hurste
 from statsmodels.tsa.vector_ar.vecm import coint_johansen
 from sklearn.linear_model import LinearRegression
 from itertools import permutations
+from concurrent.futures import ThreadPoolExecutor
 import utils
 from utils import (rolling, erolling, crolling,
                    rolling_meanvar, exp_mean, mean_function, meanvar,
@@ -130,32 +131,37 @@ def all_pairs_stats(assets,company,tipo):
      metrics.company_l=company_l
      return metrics
  
-def stats(assets_l,tipo):
-    ''' compute statistics with the spread in a period'''
+def _compute_single_pair_stats(pair_data, tipo):
+    x, y = pair_data
+    x, y, _, _ = utils.select_variables(x, y, tipo)
+    spread, _ = calculate_spread_off(x, y)
+    p = adf_test(spread)
+    H, _, _ = hurste(spread)
+    hl = half_life(spread)
+    score = cointegration_score(p, H, hl)
     
-#    assets_l = list(permutations(assets, 2))
-#    company_l = list(permutations(company, 2))
-    pvalue0=[]
-    hurst0=[]
-    half_life0=[]
-    score0=[]
-    johansen0=[]
-    for (x,y) in assets_l:
-        x,y,_,_ = utils.select_variables(x,y,tipo)
-        spread ,_= calculate_spread_off(x,y)
-        p=adf_test(spread)
-        pvalue0.append(p)
-        H,_,_ = hurste(spread)
-        hurst0.append(H)
-        hl= half_life(spread)
-        half_life0.append(hl)
-        score0.append(cointegration_score(p,H,hl))
-        result = coint_johansen(np.array([x,y]).T, det_order=0, k_ar_diff=1)
-        johansen0.append(result.lr1[0]-result.cvt[0, 1])
-        #positive values reject H0 non-stationarity
-        #print("Trace test critical values (90%, 95%, 99%):", result.cvt)
+    result = coint_johansen(np.array([x, y]).T, det_order=0, k_ar_diff=1)
+    johans = result.lr1[0] - result.cvt[0, 1]
+    
+    return p, H, hl, score, johans
+
+def stats(assets_l, tipo):
+    ''' compute statistics with the spread in a period con paralelización ThreadPool '''
+    
+    pvalue0, hurst0, half_life0, score0, johansen0 = [], [], [], [], []
+    
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        results = list(executor.map(lambda p: _compute_single_pair_stats(p, tipo), assets_l))
+        
+    for res in results:
+        pvalue0.append(res[0])
+        hurst0.append(res[1])
+        half_life0.append(res[2])
+        score0.append(res[3])
+        johansen0.append(res[4])
+
     class metrics:
-        pvalue=pvalue0;johansen=johansen0;hurst=hurst0;half_life=half_life0;score=score0
+        pvalue=pvalue0; johansen=johansen0; hurst=hurst0; half_life=half_life0; score=score0
     return metrics
 
 def sharpe_ratio(capital):

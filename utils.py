@@ -63,11 +63,27 @@ class dict2obj:
         self.__dict__.update(entries)
 
 def lin_reg(x,y):
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+
+    mask = np.isfinite(x) & np.isfinite(y)
+    x = x[mask]
+    y = y[mask]
+
+    if x.size < 2 or y.size < 2:
+        return 0.0, float(np.nanmean(y)) if y.size else 0.0
+
+    # scipy.stats.linregress falla si todos los x son iguales dentro de la ventana.
+    # En ese caso usamos una recta neutra: beta = 0 e intercepto = media(y).
+    if np.nanmax(x) - np.nanmin(x) <= 1e-12:
+        return 0.0, float(np.nanmean(y))
+
     slope, intercept, _, _, _ = linregress(x, y)
-    return slope, intercept
+    return float(slope), float(intercept)
+
 def lin_reg_alpha0(x,y):
-    slope, intercept, _, _, _ = linregress(x, y)
-    return slope, 0
+    slope, _ = lin_reg(x, y)
+    return float(slope), 0.0
 
 
 def meanvar(spread):

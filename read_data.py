@@ -10,7 +10,53 @@ import pandas as pd
 import datetime
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
-import yfinance as yf
+try:
+    import yfinance as yf
+except Exception:  # pragma: no cover - opcional para flujos basados en CSV
+    yf = None
+
+
+def detect_raw_csv_sources(folder='./dat/'):
+    candidates = [
+        (folder + "tickers.csv", folder + "historical_prices.csv"),
+        (folder + "tickers.csv", folder + "historical_prices-2.csv"),
+        (folder + "tickers.csv", folder + "prices.csv"),
+        (folder + "stock_metadata.csv", folder + "historical_prices.csv"),
+        (folder + "stock_metadata.csv", folder + "historical_prices-2.csv"),
+    ]
+    for meta_file, price_file in candidates:
+        if os.path.isfile(meta_file) and os.path.isfile(price_file):
+            return meta_file, price_file
+    raise Exception(f"El path: {folder} debe contener los archivos CSV correspondientes.")
+
+
+def normalize_price_csv(df_dat):
+    df_dat = df_dat.copy()
+    if 'close_price' in df_dat.columns:
+        df_dat = df_dat.rename(columns={
+            'ticker_name': 'symbol',
+            'close_price': 'close',
+            'volume_in_units': 'volume',
+            'open_price': 'open'
+        })
+    elif 'close' in df_dat.columns:
+        rename_map = {}
+        if 'ticker_name' in df_dat.columns and 'symbol' not in df_dat.columns:
+            rename_map['ticker_name'] = 'symbol'
+        if rename_map:
+            df_dat = df_dat.rename(columns=rename_map)
+
+    required_cols = {'date', 'symbol', 'close'}
+    missing = required_cols.difference(df_dat.columns)
+    if missing:
+        raise ValueError(f"Faltan columnas obligatorias en precios: {sorted(missing)}")
+
+    if 'volume' not in df_dat.columns:
+        df_dat['volume'] = np.nan
+
+    return df_dat
+
+
 def load_ts(assets=None,sectors=['oil'],pathdat='./dat/',
              init_date='2014-01-01',end_date='2024-12-31'):
     ''' Lee los datos ya sea un set especificado de assets o todos '''
@@ -51,37 +97,97 @@ def read_npz(sector='oil', pathdat='./dat/',
              init_date='2014-01-01',end_date='2024-12-31'):
     ''' Lee la series de datos en npz'''
     dat_fname = check_filename_exists(sector,pathdat,init_date,end_date)
-    dat=np.load(dat_fname,allow_pickle=True)    
-    dates = np.array([dat['startdate'] + datetime.timedelta(days=int(d)) for d in dat['day']])
-    return dat['day'],dates,dat['price'],dat['company'],dat['volume']
+    with np.load(dat_fname,allow_pickle=True) as dat:
+        day = np.array(dat['day'])
+        startdate = pd.to_datetime(str(dat['startdate'])).to_pydatetime()
+        dates = np.array([startdate + datetime.timedelta(days=int(d)) for d in day])
+        price = np.array(dat['price'])
+        company = np.array(dat['company'])
+        volume = np.array(dat['volume'])
+    return day,dates,price,company,volume
     
-def clean_data(day,price,company,volume): 
+def clean_data(day, price, company, volume, min_coverage=0.95):
     ''' Dado los prices en un periodo de tiempos 
-    busca las compa~nias que tengan toda la series completa '''
+    busca las compañias que tengan al menos `min_coverage` fraccion de datos completos.
+    Los NaN restantes se rellenan con forward-fill. '''
     
-    ncompany,nt = price.shape    
-    nts = np.count_nonzero(~np.isnan(price[:,:]),axis=1)
-    nt_correct=np.max(nts)
-    jref=np.argmax(nts==nt_correct)
-    nt_correct = np.count_nonzero(~np.isnan(price[jref,:]))
-    mask_nan=np.logical_not(np.isnan(price[jref,:]))
-    dt = day[jref,mask_nan]
+    ncompany, nt = price.shape    
+    nts = np.count_nonzero(~np.isnan(price[:, :]), axis=1)
+    nt_correct = np.max(nts)
+    jref = np.argmax(nts == nt_correct)
+    nt_correct = np.count_nonzero(~np.isnan(price[jref, :]))
+    mask_nan = np.logical_not(np.isnan(price[jref, :]))
+    dt = day[jref, mask_nan]
     
-    print('Dias habiles: ',nt_correct)
+    threshold = int(nt_correct * min_coverage)
+    print(f'Dias habiles de referencia: {nt_correct} | Minimo requerido ({int(min_coverage*100)}%): {threshold}')
 
-    prices,company1, volumes =  [], [], [] #np.zeros(price.shape[0],nt_correct)
+    prices, company1, volumes = [], [], []
     for i in range(ncompany):
-        if nt_correct == np.count_nonzero(~np.isnan(price[i,:])):
-            prices.append( price[i,mask_nan] )
-            volumes.append( volume[i,mask_nan] )
+        n_valid = np.count_nonzero(~np.isnan(price[i, mask_nan]))
+        if n_valid >= threshold:
+            p_slice = price[i, mask_nan].copy()
+            v_slice = volume[i, mask_nan].copy()
+            # Forward-fill NaNs remanentes
+            df_tmp = pd.Series(p_slice)
+            p_slice = df_tmp.ffill().bfill().values
+            df_vol = pd.Series(v_slice)
+            v_slice = df_vol.ffill().bfill().fillna(0).values
+            prices.append(p_slice)
+            volumes.append(v_slice)
             company1.append(company[i])
-                            
+
     price = np.array(prices)
     volume = np.array(volumes)
     company = np.array(company1)
-    print('Cantidad de compa~nias: ',len(company1))
+    print(f'Cantidad de companias aceptadas: {len(company1)}')
     
-    return dt,price,company,volume
+    return dt, price, company, volume
+
+
+def clean_data_on_common_calendar(day_offsets, price, company, volume, min_coverage=0.95):
+    '''
+    Limpia una matriz activo x tiempo preservando un calendario comun ya fijado.
+
+    A diferencia de `clean_data`, no recorta fechas usando un ticker de referencia.
+    Esto permite que todas las industrias compartan exactamente el mismo eje temporal.
+    '''
+
+    day_offsets = np.asarray(day_offsets, dtype=int)
+    price = np.asarray(price, dtype=float)
+    volume = np.asarray(volume, dtype=float)
+    company = np.asarray(company)
+
+    if price.ndim != 2:
+        raise ValueError("`price` debe ser una matriz 2D de activos x fechas.")
+    if volume.shape != price.shape:
+        raise ValueError("`volume` debe tener la misma forma que `price`.")
+    if day_offsets.ndim != 1 or len(day_offsets) != price.shape[1]:
+        raise ValueError("`day_offsets` debe ser un vector 1D con una entrada por fecha del calendario comun.")
+
+    nt = len(day_offsets)
+    threshold = int(np.ceil(nt * float(min_coverage)))
+    print(f'Fechas del calendario comun: {nt} | Minimo requerido ({int(min_coverage*100)}%): {threshold}')
+
+    prices, company1, volumes = [], [], []
+    for i in range(price.shape[0]):
+        valid_mask = ~np.isnan(price[i, :])
+        n_valid = int(np.count_nonzero(valid_mask))
+        if n_valid < threshold:
+            continue
+
+        p_slice = pd.Series(price[i, :]).ffill().bfill().values
+        v_slice = pd.Series(volume[i, :]).ffill().bfill().fillna(0).values
+        prices.append(p_slice)
+        volumes.append(v_slice)
+        company1.append(company[i])
+
+    price = np.array(prices)
+    volume = np.array(volumes)
+    company = np.array(company1)
+    print(f'Cantidad de companias aceptadas en calendario comun: {len(company1)}')
+
+    return day_offsets, price, company, volume
 
 
 def check_filename_exists(sector,pathdat,init_date,end_date):
@@ -105,7 +211,8 @@ sector_d = {"airlines":"Passenger Airlines",
             "insurance": "Insurance",
             "marine": "Marine Transportation",
             "metals": "Metals & Mining",
-            "oil": "Oil, Gas & Consumable Fuels" ,
+            "oil": "Energy - Fossil Fuels",
+            "banks": "Banking Services",
             "semiconductors": "Semiconductors & Semiconductor Equipment",
             "software": "Software",
             "pharmaceuticals": "Pharmaceuticals",
@@ -131,15 +238,34 @@ def csv2npz(init_date='2014-01-01',end_date='2024-12-31',
        filtra las compa~nias que tienen datos completos en el periodo
        y los guarda en un npz '''
 
-    sector = sector_d[industry_type]
-    if (not os.path.isfile(folder+"stock_metadata.csv") or
-        not os.path.isfile(folder+"historical_prices.csv" ) ):
-        raise Exception(f"El path: {folder} debe contener los *.csv \n historical_prices.csv") 
+    sector = sector_d.get(industry_type, industry_type)
+    
+    # Identificar nombres de archivo según disponibilidad
+    meta_file, price_file = detect_raw_csv_sources(folder)
+        
     # reading csv file 
-    df = pd.read_csv(folder+"stock_metadata.csv")
-    df_dat = pd.read_csv(folder+"historical_prices.csv")
-    df_company = df[df['industry'] == sector]
-    df_dat['date'] = pd.to_datetime(df_dat['date'])
+    df = pd.read_csv(meta_file, low_memory=False)
+    df_dat = normalize_price_csv(pd.read_csv(price_file, low_memory=False))
+
+    # Normalización de columnas para estandarización
+    if 'RIC' in df.columns:
+        df = df.rename(columns={'RIC': 'symbol'})
+    elif 'ticker_name' in df.columns:
+        df = df.rename(columns={'ticker_name': 'symbol'})
+
+    mask = pd.Series(False, index=df.index)
+    col_sectores = ['TRBC Business Sector', 'TRBC Industry Group', 'industry', 'Sector', 'TRBC Economic Sector']
+    for col in col_sectores:
+        if col in df.columns:
+            mask = mask | (df[col] == sector)
+            
+    if mask.any() or any(c in df.columns for c in col_sectores):
+        df_company = df[mask]
+    else:
+        df_company = df
+
+    df_dat['date'] = pd.to_datetime(df_dat['date'], errors='coerce')
+    df_dat = df_dat.dropna(subset=['date'])
 
     print('Finished reading csv')
     init_date=pd.to_datetime(init_date)
@@ -150,20 +276,23 @@ def csv2npz(init_date='2014-01-01',end_date='2024-12-31',
     df_all = pd.DataFrame({'date': date_range})
 
     print('Collecting time series')
+    # Optimización: filtrar y pre-agrupar para evitar O(N*M)
+    df_dat = df_dat[(df_dat['date'] >= init_date) & (df_dat['date'] <= end_date)].copy()
+    df_dat.loc[:, 'julian'] = (df_dat['date'] - init_date).dt.days
+    df_dat_grouped = dict(tuple(df_dat.groupby('symbol')))
+
     for index, row in df_company.iterrows():
-        df_ts = df_dat[df_dat['symbol'] == row['symbol']].copy()
-
-        df_ts=df_ts[(df_ts['date'] >= init_date) & (df_ts['date'] <= end_date)]
-        df_ts.loc[:, 'julian'] = (df_ts['date'] - init_date).dt.days
-
-    #    df_ts['julian'] = (df_rangets['date']-init_date).dt.days
+        sym = row['symbol']
+        if sym not in df_dat_grouped:
+            continue
+        df_ts = df_dat_grouped[sym]
 
         df_rangets=pd.merge(df_all, df_ts[['date', 'julian', var_type,'volume']], on='date', how='left')
 
         julians.append(df_rangets['julian'].values)
         opens.append(df_rangets[var_type].values)
         volumes.append(df_rangets['volume'].values)
-        company.append(row['symbol'])
+        company.append(sym)
 
     day = np.array(julians)
     price = np.array(opens)
@@ -197,6 +326,8 @@ def yahoo_download(tickers, start_date, end_date):
         prices_df: DataFrame con precios ajustados
         volumes_df: DataFrame con volúmenes operados en dólares
     """
+    if yf is None:
+        raise ImportError("yfinance no está instalado en este entorno.")
     print(f"Periodo: {start_date} a {end_date}")
 
     
